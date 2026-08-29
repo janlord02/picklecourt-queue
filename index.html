@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <meta name="theme-color" content="#0c2b23" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, viewport-fit=cover, user-scalable=no, maximum-scale=1<% } %>"
+    />
+
+    <title><%= productName %></title>
+    <meta name="description" content="<%= productDescription %>" />
+
+    <link rel="icon" type="image/png" sizes="128x128" href="/icons/favicon-128x128.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/icons/favicon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/icons/favicon-128x128.png" />
+    <link rel="icon" type="image/ico" href="/favicon.ico" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+  </head>
+  <body>
+    <!-- Pre-JS loading state: visible from the very first paint until the
+         Vue app mounts (App.vue removes it), where AppSplash.vue takes over
+         seamlessly on the same white background. -->
+    <div
+      id="preload-splash"
+      style="
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: #ffffff;
+      "
+    >
+      <img src="/icons/picklecourt-icon.png" width="72" height="72" alt="PickleCourt" />
+      <div
+        style="
+          width: 26px;
+          height: 26px;
+          border: 3px solid #d9efe9;
+          border-top-color: #0c2b23;
+          border-radius: 50%;
+          animation: preload-spin 0.9s linear infinite;
+        "
+      ></div>
+    </div>
+    <style>
+      @keyframes preload-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+    <!-- quasar:entry-point -->
+  </body>
+</html>

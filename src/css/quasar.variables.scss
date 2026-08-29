@@ -1,0 +1,16 @@
+// PickleCourt Play brand palette. Sampled from src/assets/logo.png:
+// wordmark teal #2c8670, lime #c7f000. The app's MAIN color is the deep
+// brand teal #0c2b23 (header, footer, buttons); the wordmark teal is the
+// secondary, lime is the accent.
+
+$primary: #0c2b23; // deep brand teal — headers, footer, all primary buttons
+$secondary: #2c8670; // logo teal (links/soft highlights)
+$accent: #c7f000; // brand lime — use with dark text only
+
+$dark: #0c2b23;
+$dark-page: #0c2b23;
+
+$positive: #21ba45;
+$negative: #c10015;
+$info: #31ccec;
+$warning: #f2c037;

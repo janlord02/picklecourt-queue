@@ -1,0 +1,498 @@
+// PickleCourt Play — design system.
+//
+// Principles: one surface style (white, hairline border, soft radius — no
+// accent borders, no drop-shadow soup); status shown as small colored dots,
+// never loud pills; a strict button hierarchy (one filled primary per view,
+// quiet outlines for secondary, plain text for destructive); sentence-case
+// labels; tabular numerals for anything that counts or ticks.
+
+:root {
+  --ink: #16211d; // primary text
+  --ink-muted: #5f6f69; // secondary text
+  --ink-faint: #93a09a; // captions, labels
+  --surface: #ffffff;
+  --surface-sunken: #fafbfa; // action bars, wells
+  --line: #e7ece9; // hairline borders
+  --page: #f4f6f5; // app background (cool sage tint)
+  --brand-deep: #0c2b23;
+  --brand-teal: #2c8670;
+  --lime: #c7f000;
+  --radius: 16px;
+}
+
+body {
+  font-family: 'Figtree', 'Roboto', -apple-system, sans-serif;
+  background: var(--page);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 16px 88px; // room for the bottom nav
+  width: 100%;
+}
+
+// ——— typography helpers ———
+.micro-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+// ——— buttons: sentence case, consistent radius, real hierarchy ———
+.q-btn {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
+.q-btn--round {
+  border-radius: 50%;
+}
+
+.big-action {
+  height: 54px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+// ——— surfaces ———
+.play-card {
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 16px;
+}
+
+// Section title that sits ABOVE a card, not inside it.
+.section-label {
+  @extend .micro-label;
+  display: block;
+  margin: 20px 2px 8px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 36px 20px;
+  color: var(--ink-faint);
+
+  .empty-state-title {
+    color: var(--ink-muted);
+    font-weight: 600;
+    font-size: 14px;
+  }
+}
+
+// ——— status dots (replaces the pastel pill chips) ———
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: #cbd5e1;
+
+  &.dot-registered { background: #38bdf8; }
+  &.dot-waiting { background: var(--brand-teal); }
+  &.dot-up_next { background: #eab308; }
+  &.dot-called { background: #f97316; }
+  &.dot-playing { background: #3b82f6; }
+  &.dot-cooling_down { background: #8b5cf6; }
+  &.dot-on_break { background: #94a3b8; }
+  &.dot-checked_out { background: #cbd5e1; }
+  &.dot-no_show,
+  &.dot-injured { background: #ef4444; }
+}
+
+// Locked-partner pair tag — visible pill so pairs stand out at a glance.
+.pair-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(44, 134, 112, 0.12);
+  color: var(--brand-teal);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  .q-icon {
+    font-size: 13px;
+  }
+}
+
+// Live indicator: quiet pulsing dot, not a red badge.
+.live-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #dc2626;
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #dc2626;
+    animation: live-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+// ——— court card: structured head / body / action bar ———
+.court-card {
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: hidden;
+
+  .court-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 8px 12px 16px;
+  }
+
+  .court-card-body {
+    padding: 4px 16px 16px;
+  }
+
+  .court-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-sunken);
+  }
+}
+
+.court-timer {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--brand-teal);
+}
+
+// ——— match lineup (teams) ———
+.lineup {
+  text-align: center;
+
+  .lineup-team {
+    font-size: 15px;
+    font-weight: 650;
+    line-height: 1.45;
+  }
+
+  .lineup-vs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0;
+
+    &::before,
+    &::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+
+    span {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+    }
+  }
+
+  .lineup-meta {
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-muted);
+  }
+}
+
+// ——— list rows (queue, players, leaderboard, logs) ———
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+
+  & + .list-row {
+    border-top: 1px solid var(--line);
+  }
+}
+
+.queue-pos {
+  width: 28px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--brand-teal);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+// ——— "you're up" full-screen takeover ———
+.called-takeover {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: linear-gradient(165deg, #14473a 0%, var(--brand-deep) 70%);
+  color: #fff;
+  text-align: center;
+  padding: 24px;
+
+  .takeover-court {
+    color: var(--lime);
+  }
+}
+
+// ——— queue position hero (player Play tab) ———
+.queue-hero {
+  text-align: center;
+  padding: 30px 16px 24px;
+
+  .queue-hero-number {
+    font-size: 68px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--brand-deep);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .queue-hero-label {
+    @extend .micro-label;
+    margin-bottom: 6px;
+  }
+}
+
+// ——— bottom tab bar ———
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  display: flex;
+  background: var(--brand-deep);
+  border-top: 1px solid #1d4a3d;
+  padding-bottom: env(safe-area-inset-bottom);
+
+  .bottom-nav-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 9px 0 7px;
+    color: #8fb5a9;
+    text-decoration: none;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: color 0.15s ease;
+
+    .q-icon {
+      font-size: 22px;
+    }
+
+    &.active {
+      color: var(--lime);
+    }
+  }
+}
+
+// Desktop: navigation moves into the header — no thumb bar, no reserved
+// bottom padding.
+@media (min-width: 1024px) {
+  .bottom-nav {
+    display: none;
+  }
+
+  .app-page {
+    padding-bottom: 32px;
+  }
+}
+
+// ——— bottom sheets: grabber + rounded top ———
+.sheet {
+  border-radius: 20px 20px 0 0 !important;
+  width: 100%;
+  max-width: 480px;
+  padding-bottom: env(safe-area-inset-bottom);
+
+  &::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: #d8dfda;
+    margin: 8px auto 0;
+  }
+}
+
+// Even vertical rhythm for dialog forms (pair with `hide-bottom-space`).
+.form-stack > * + * {
+  margin-top: 14px;
+}
+
+// Centered dialogs (confirm etc.) keep soft corners.
+.dialog-card {
+  border-radius: 16px;
+  width: 100%;
+  max-width: 440px;
+}
+
+// ——— brand badge: tiny lime suffix after the wordmark ("PickleCourt QUEUE") ———
+.brand-badge {
+  display: inline-block;
+  padding: 3px 7px 2px;
+  border-radius: 6px;
+  background: var(--lime);
+  color: var(--brand-deep);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  line-height: 1.3;
+}
+
+// ——— auth pages (login / register): dark brand shell, floating white card ———
+.auth-page {
+  background:
+    radial-gradient(120% 70% at 50% -10%, #14473a 0%, var(--brand-deep) 60%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.auth-wrap {
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.auth-logo {
+  height: 30px;
+  display: block;
+}
+
+.auth-tagline {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12.5px;
+  margin: 10px 0 28px;
+}
+
+.auth-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px 20px 22px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
+}
+
+.auth-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.auth-sub {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  margin: 3px 0 20px;
+}
+
+.auth-link {
+  color: var(--brand-teal);
+  font-weight: 600;
+  font-size: 12.5px;
+  text-decoration: none;
+}
+
+.auth-alt {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  margin-top: 22px;
+
+  a {
+    color: var(--lime);
+    font-weight: 700;
+    text-decoration: none;
+  }
+}
+
+.auth-note {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin-top: 10px;
+  padding: 0 12px;
+}
+
+// ——— winners/losers pool tags (queue rows) ———
+.pool-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.pool-tag--win {
+  background: rgba(199, 240, 0, 0.4);
+  color: #3c5200;
+}
+
+.pool-tag--challenger {
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+}
