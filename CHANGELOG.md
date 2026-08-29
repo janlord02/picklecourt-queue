@@ -6,6 +6,13 @@ first.
 
 ## 2026-08
 
+- **Deployment tooling** — `docs/DEPLOY.md` documents the full CloudPanel
+  (DigitalOcean) process: DNS, static site + SPA fallback vhost, SSL,
+  backend one-time steps (QUEUE_APP_URL, CORS origin, migrations), GitHub
+  deploy key, and verification/rollback. `deploy/deploy-queue.sh` is the
+  one-command deploy (copy once to /root): clone-or-pull → npm ci →
+  quasar build → rsync into the site docroot; first run writes a
+  production `.env` template and stops until it's filled in.
 - **Plan card is now data-driven** — it checks the business memberships
   carried in the login/handoff payload (`auth.businesses`): members of a
   platform business (i.e., PickleCourt booking subscribers) see a lime
