@@ -12,7 +12,10 @@ first.
   affiliations ("Dink Masters · at Paddle UP" when a club has several
   venues); the selection sends the right business_id + club_id. Accounts
   linked to nothing see an explanatory notice instead of the dead-end
-  "No business context" error.
+  "No business context" error. The picker is properly REQUIRED: submit
+  validation ("Pick who you are organizing for"), auto-default that
+  survives late context loads, and a disabled Create button when the
+  account has no options.
 - **Deployment tooling** — `docs/DEPLOY.md` documents the full CloudPanel
   (DigitalOcean) process: DNS, static site + SPA fallback vhost, SSL,
   backend one-time steps (QUEUE_APP_URL, CORS origin, migrations), GitHub
