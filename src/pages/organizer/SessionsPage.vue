@@ -99,7 +99,9 @@
               label="Organizing as"
               emit-value
               map-options
+              hide-bottom-space
               :options="organizeAsOptions"
+              :rules="[(v) => !!v || 'Pick who you are organizing for']"
             />
             <q-select
               v-model="form.format"
@@ -145,6 +147,7 @@
               class="big-action full-width"
               color="primary"
               unelevated
+              :disable="!organizeAsOptions.length"
               label="Create session"
               type="submit"
               :loading="creating"
@@ -157,7 +160,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { computed } from 'vue'
@@ -232,10 +235,16 @@ async function loadContext() {
       clubs: [],
     }
   }
-  if (!form.organizeAs && organizeAsOptions.value.length) {
-    form.organizeAs = organizeAsOptions.value[0].value
-  }
 }
+
+// Always keep a valid default selected, even when the context arrives
+// after the dialog was opened (the field is required, not optional).
+watch(organizeAsOptions, (options) => {
+  const stillValid = options.some((o) => o.value === form.organizeAs)
+  if (!stillValid) {
+    form.organizeAs = options[0]?.value ?? null
+  }
+})
 
 function sessionDot(status) {
   return { open: 'dot-waiting', draft: 'dot-checked_out', ended: 'dot-checked_out', cancelled: 'dot-no_show' }[
