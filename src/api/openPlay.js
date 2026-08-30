@@ -39,6 +39,7 @@ export const addPlayer = (id, payload) =>
 export const playerAction = (id, playerId, action, extra = {}) =>
   api.patch(`/play/sessions/${id}/players/${playerId}`, { action, ...extra }).then(unwrap)
 export const getMyStats = () => api.get('/play/me/stats').then(unwrap)
+export const getOrganizerContext = () => api.get('/play/organizer/context').then(unwrap)
 export const getPlayerSummary = (id, playerId) =>
   api.get(`/play/sessions/${id}/players/${playerId}`).then(unwrap)
 

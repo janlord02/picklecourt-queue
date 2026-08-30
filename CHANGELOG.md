@@ -6,6 +6,13 @@ first.
 
 ## 2026-08
 
+- **Fix: club owners blocked from creating sessions** — the wizard now
+  loads `GET /play/organizer/context` and shows an "Organizing as" picker
+  covering businesses you staff AND your clubs' approved venue
+  affiliations ("Dink Masters · at Paddle UP" when a club has several
+  venues); the selection sends the right business_id + club_id. Accounts
+  linked to nothing see an explanatory notice instead of the dead-end
+  "No business context" error.
 - **Deployment tooling** — `docs/DEPLOY.md` documents the full CloudPanel
   (DigitalOcean) process: DNS, static site + SPA fallback vhost, SSL,
   backend one-time steps (QUEUE_APP_URL, CORS origin, migrations), GitHub

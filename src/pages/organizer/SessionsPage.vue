@@ -83,15 +83,23 @@
                 <q-input v-model="form.end_time" outlined dense label="End" type="time" />
               </div>
             </div>
+            <div
+              v-if="!organizeAsOptions.length"
+              class="text-caption text-negative"
+            >
+              Your account isn't linked to a business or an affiliated club yet, so you can't
+              create sessions. Business staff are added by their admin; club admins need an
+              approved venue affiliation in PickleCourt.
+            </div>
             <q-select
-              v-if="auth.businesses.length > 1"
-              v-model="form.business_id"
+              v-else-if="organizeAsOptions.length > 1"
+              v-model="form.organizeAs"
               outlined
               dense
-              label="Business"
+              label="Organizing as"
               emit-value
               map-options
-              :options="auth.businesses.map((b) => ({ label: b.name, value: b.id }))"
+              :options="organizeAsOptions"
             />
             <q-select
               v-model="form.format"
@@ -152,7 +160,8 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
-import { createSession, listSessions } from 'src/api/openPlay'
+import { computed } from 'vue'
+import { createSession, getOrganizerContext, listSessions } from 'src/api/openPlay'
 import { useAuthStore } from 'src/stores/auth'
 import { FORMAT_OPTIONS } from 'src/utils/formats'
 
@@ -178,11 +187,55 @@ const form = reactive({
   date: todayYmd(),
   start_time: '18:00',
   end_time: '22:00',
-  business_id: null,
+  organizeAs: null,
   format: 'smart',
   courtCount: 4,
   max_players: null,
 })
+
+// Who can I organize for? Businesses I staff + my clubs' APPROVED venue
+// affiliations (club admins have no business membership at login — this
+// is what used to dead-end them with "No business context").
+const context = ref({ businesses: [], clubs: [] })
+
+const organizeAsOptions = computed(() => {
+  const options = []
+  for (const business of context.value.businesses) {
+    options.push({
+      label: business.name,
+      value: `b:${business.id}`,
+      business_id: business.id,
+      club_id: null,
+    })
+  }
+  for (const club of context.value.clubs) {
+    for (const business of club.businesses) {
+      options.push({
+        label:
+          club.businesses.length > 1 ? `${club.name} · at ${business.name}` : club.name,
+        value: `c:${club.id}:${business.id}`,
+        business_id: business.id,
+        club_id: club.id,
+      })
+    }
+  }
+  return options
+})
+
+async function loadContext() {
+  try {
+    context.value = await getOrganizerContext()
+  } catch {
+    // Fall back to the login payload's businesses.
+    context.value = {
+      businesses: auth.businesses.map((b) => ({ id: b.id, name: b.name })),
+      clubs: [],
+    }
+  }
+  if (!form.organizeAs && organizeAsOptions.value.length) {
+    form.organizeAs = organizeAsOptions.value[0].value
+  }
+}
 
 function sessionDot(status) {
   return { open: 'dot-waiting', draft: 'dot-checked_out', ended: 'dot-checked_out', cancelled: 'dot-no_show' }[
@@ -207,6 +260,15 @@ async function load() {
 }
 
 async function create() {
+  const organizeAs = organizeAsOptions.value.find((o) => o.value === form.organizeAs)
+  if (!organizeAs) {
+    $q.notify({
+      message: 'Your account isn’t linked to a business or an affiliated club yet.',
+      color: 'negative',
+    })
+    return
+  }
+
   creating.value = true
   try {
     const payload = {
@@ -214,7 +276,8 @@ async function create() {
       date: form.date,
       start_time: form.start_time || null,
       end_time: form.end_time || null,
-      business_id: form.business_id || auth.businesses[0]?.id || undefined,
+      business_id: organizeAs.business_id,
+      club_id: organizeAs.club_id || undefined,
       format: form.format,
       max_players: form.max_players || null,
       courts: Array.from({ length: form.courtCount }, (_, i) => ({ label: `Court ${i + 1}` })),
@@ -234,7 +297,10 @@ function open(session) {
   router.push({ name: 'organizer-live', params: { id: session.id } })
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadContext()
+})
 </script>
 
 <style scoped>
