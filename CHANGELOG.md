@@ -6,6 +6,13 @@ first.
 
 ## 2026-08
 
+- **Anyone can organize — "Organizing as" removed** — the wizard has no
+  business/club picker anymore: staff and affiliated club admins get
+  their business attached silently (first context option), everyone else
+  creates a personal session with zero friction and zero errors. The
+  Organizer console link on Profile now shows for every signed-in user
+  ("Create and run your own sessions") and the Plan card shows for
+  everyone; per-session access stays enforced server-side.
 - **Fix: club owners blocked from creating sessions** — the wizard now
   loads `GET /play/organizer/context` and shows an "Organizing as" picker
   covering businesses you staff AND your clubs' approved venue

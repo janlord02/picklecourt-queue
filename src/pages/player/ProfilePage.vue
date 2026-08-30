@@ -68,7 +68,7 @@
 
         <!-- Plan: business members (booking-app subscribers) ride free
              forever; everyone else is free during early access. -->
-        <div v-if="auth.isOrganizerRole" class="play-card q-mb-md">
+        <div class="play-card q-mb-md">
           <div class="row items-center no-wrap" style="gap: 10px">
             <div class="col">
               <div class="row items-center no-wrap" style="gap: 8px">
@@ -100,9 +100,13 @@
             </q-item-section>
             <q-item-section side><q-icon name="eva-chevron-right-outline" /></q-item-section>
           </q-item>
-          <q-item v-if="auth.isOrganizerRole" clickable :to="{ name: 'organizer-sessions' }">
+          <!-- Anyone can organize: per-session access is enforced server-side. -->
+          <q-item clickable :to="{ name: 'organizer-sessions' }">
             <q-item-section avatar><q-icon name="eva-settings-2-outline" /></q-item-section>
-            <q-item-section>Organizer console</q-item-section>
+            <q-item-section>
+              <q-item-label>Organizer console</q-item-label>
+              <q-item-label caption>Create and run your own sessions</q-item-label>
+            </q-item-section>
             <q-item-section side><q-icon name="eva-chevron-right-outline" /></q-item-section>
           </q-item>
           <q-item clickable @click="openMySessions">

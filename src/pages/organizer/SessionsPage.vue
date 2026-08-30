@@ -83,26 +83,6 @@
                 <q-input v-model="form.end_time" outlined dense label="End" type="time" />
               </div>
             </div>
-            <div
-              v-if="!organizeAsOptions.length"
-              class="text-caption text-negative"
-            >
-              Your account isn't linked to a business or an affiliated club yet, so you can't
-              create sessions. Business staff are added by their admin; club admins need an
-              approved venue affiliation in PickleCourt.
-            </div>
-            <q-select
-              v-else-if="organizeAsOptions.length > 1"
-              v-model="form.organizeAs"
-              outlined
-              dense
-              label="Organizing as"
-              emit-value
-              map-options
-              hide-bottom-space
-              :options="organizeAsOptions"
-              :rules="[(v) => !!v || 'Pick who you are organizing for']"
-            />
             <q-select
               v-model="form.format"
               outlined
@@ -147,7 +127,6 @@
               class="big-action full-width"
               color="primary"
               unelevated
-              :disable="!organizeAsOptions.length"
               label="Create session"
               type="submit"
               :loading="creating"
@@ -269,14 +248,13 @@ async function load() {
 }
 
 async function create() {
-  const organizeAs = organizeAsOptions.value.find((o) => o.value === form.organizeAs)
-  if (!organizeAs) {
-    $q.notify({
-      message: 'Your account isn’t linked to a business or an affiliated club yet.',
-      color: 'negative',
-    })
-    return
-  }
+  // Silent attachment: staff/club-admin sessions land under their
+  // business automatically; everyone else gets a personal session
+  // (no business needed — anyone can organize).
+  const organizeAs =
+    organizeAsOptions.value.find((o) => o.value === form.organizeAs) ||
+    organizeAsOptions.value[0] ||
+    null
 
   creating.value = true
   try {
@@ -285,8 +263,8 @@ async function create() {
       date: form.date,
       start_time: form.start_time || null,
       end_time: form.end_time || null,
-      business_id: organizeAs.business_id,
-      club_id: organizeAs.club_id || undefined,
+      business_id: organizeAs?.business_id || undefined,
+      club_id: organizeAs?.club_id || undefined,
       format: form.format,
       max_players: form.max_players || null,
       courts: Array.from({ length: form.courtCount }, (_, i) => ({ label: `Court ${i + 1}` })),
