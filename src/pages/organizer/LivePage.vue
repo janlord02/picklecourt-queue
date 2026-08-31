@@ -427,25 +427,31 @@
             {{ amending ? 'Edit result' : 'Match result' }}
           </div>
           <div class="row q-col-gutter-md items-end">
+            <!-- mask="##": digits only, two max — fat-finger-proof. Focus
+                 selects the current value so typing replaces the 0. -->
             <div class="col text-center">
               <div class="text-caption text-grey-7 q-mb-xs">{{ teamNames(scoringMatch.team_a) }}</div>
               <q-input
-                v-model.number="scoreA"
+                v-model="scoreA"
                 outlined
-                type="number"
+                mask="##"
+                inputmode="numeric"
+                placeholder="0"
                 input-class="text-center text-h5 tnum"
-                :min="0"
+                @focus="(evt) => evt.target.select()"
               />
             </div>
             <div class="col-auto text-h6 text-grey-5 q-pb-sm">–</div>
             <div class="col text-center">
               <div class="text-caption text-grey-7 q-mb-xs">{{ teamNames(scoringMatch.team_b) }}</div>
               <q-input
-                v-model.number="scoreB"
+                v-model="scoreB"
                 outlined
-                type="number"
+                mask="##"
+                inputmode="numeric"
+                placeholder="0"
                 input-class="text-center text-h5 tnum"
-                :min="0"
+                @focus="(evt) => evt.target.select()"
               />
             </div>
           </div>
@@ -833,8 +839,8 @@ const suggestingCourtId = ref(null)
 const scoreDialog = ref(false)
 const scoringMatch = ref(null)
 const amending = ref(false)
-const scoreA = ref(11)
-const scoreB = ref(0)
+const scoreA = ref('0')
+const scoreB = ref('0')
 const scoring = ref(false)
 const addDialog = ref(false)
 const adding = ref(false)
@@ -1424,18 +1430,25 @@ async function doMatch(fn, match) {
 function openScoreDialog(match, isAmend = false) {
   scoringMatch.value = match
   amending.value = isAmend
-  scoreA.value = isAmend ? match.team_a_score : 11
-  scoreB.value = isAmend ? match.team_b_score : 0
+  scoreA.value = isAmend ? String(match.team_a_score ?? 0) : '0'
+  scoreB.value = isAmend ? String(match.team_b_score ?? 0) : '0'
   scoreDialog.value = true
 }
 
 async function saveScore() {
+  const a = parseInt(scoreA.value, 10) || 0
+  const b = parseInt(scoreB.value, 10) || 0
+  if (a === b) {
+    $q.notify({ message: 'Scores can’t be equal — one team must win.', color: 'negative' })
+    return
+  }
+
   scoring.value = true
   try {
     if (amending.value) {
-      await amendMatch(scoringMatch.value.id, scoreA.value, scoreB.value)
+      await amendMatch(scoringMatch.value.id, a, b)
     } else {
-      await scoreMatch(scoringMatch.value.id, scoreA.value, scoreB.value)
+      await scoreMatch(scoringMatch.value.id, a, b)
     }
     scoreDialog.value = false
     await refresh()

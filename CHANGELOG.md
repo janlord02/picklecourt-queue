@@ -4,6 +4,15 @@ All notable changes to the PickleCourt Play (queuing) app. This project isn't
 formally versioned yet (pre-1.0), so entries are grouped by month. Newest
 first.
 
+## 2026-09
+
+- **Score inputs made fat-finger-proof** — the result dialog now opens at
+  0–0 (it used to prefill 11–0, silently recording an 11–0 win if saved
+  untouched), the fields accept digits only with a hard two-character cap
+  (`mask="##"` + numeric keypad — no "e", minus signs, or 111 typos), and
+  focusing a field selects its value so typing replaces the 0. Equal
+  scores are rejected client-side before the request.
+
 ## 2026-08
 
 - **Anyone can organize — "Organizing as" removed** — the wizard has no
