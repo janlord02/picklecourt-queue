@@ -37,6 +37,9 @@
       <router-view />
     </q-page-container>
 
+    <!-- Lead-gen: player surfaces only (never the organizer console/TV) -->
+    <RegisterCourtBanner />
+
     <nav class="bottom-nav">
       <router-link
         v-for="tab in tabs"
@@ -54,6 +57,7 @@
 
 <script setup>
 import logoUrl from 'src/assets/logo.png'
+import RegisterCourtBanner from 'src/components/RegisterCourtBanner.vue'
 import { usePlaySessionStore } from 'src/stores/playSession'
 
 const playStore = usePlaySessionStore()

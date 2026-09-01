@@ -6,6 +6,13 @@ first.
 
 ## 2026-09
 
+- **"Own a court?" lead-gen banner** — the queue app gets its version of
+  the booking frontend's RegisterCourtBanner: a dismissible card docked
+  bottom-right ("OWN A COURT? · List your court on PickleCourt now" with
+  a "Request for a Free Demo" button → picklecourt.ph, new tab). Player
+  surfaces only — never the organizer console or the venue TV board.
+  Dismissal is remembered for 3 days; docks above the bottom tab bar on
+  phones, corner on desktop, always under dialogs.
 - **Score inputs made fat-finger-proof** — the result dialog now opens at
   0–0 (it used to prefill 11–0, silently recording an 11–0 win if saved
   untouched), the fields accept digits only with a hard two-character cap
