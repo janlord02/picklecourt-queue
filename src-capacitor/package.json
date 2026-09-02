@@ -1,0 +1,14 @@
+{
+  "name": "picklecourt-play",
+  "version": "0.1.0",
+  "description": "PickleCourt Play — open play queuing, smart matchmaking and live courts",
+  "author": "Janlord Luga <janlord.luga1991@gmail.com>",
+  "private": true,
+  "dependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.6.9"
+  }
+}

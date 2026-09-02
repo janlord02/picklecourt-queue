@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PickleCourt Queue</string>
+    <string name="title_activity_main">PickleCourt Queue</string>
+    <string name="package_name">ph.picklecourt.queue</string>
+    <string name="custom_url_scheme">ph.picklecourt.queue</string>
+</resources>

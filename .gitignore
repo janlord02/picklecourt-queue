@@ -32,3 +32,7 @@ yarn-error.log*
 # local .env files
 .env
 .env.local*
+
+# Android signing (never commit keys)
+src-capacitor/android/keystore.properties
+*.keystore
