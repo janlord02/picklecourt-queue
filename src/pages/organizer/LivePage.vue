@@ -23,7 +23,7 @@
           <q-btn flat dense round icon="eva-edit-outline" color="grey-8" @click="openEditSession">
             <q-tooltip>Edit session</q-tooltip>
           </q-btn>
-          <q-btn v-if="playStore.canManage" flat dense round icon="eva-person-add-outline" color="grey-8" @click="openHostsDialog">
+          <q-btn v-if="playStore.canManage" flat dense no-caps icon="eva-person-add-outline" label="Host" color="grey-8" @click="openHostsDialog">
             <q-tooltip>Invite host</q-tooltip>
           </q-btn>
           <q-btn flat dense round icon="eva-tv-outline" color="grey-8" @click="openDisplay">
@@ -740,7 +740,7 @@
             Invite someone by email to co-host this session. They'll accept in their
             profile and can then run the queue. Access applies only to this session.
           </div>
-          <q-form class="row items-start q-gutter-sm no-wrap q-mb-md" @submit.prevent="submitHostInvite">
+          <q-form ref="hostFormRef" class="row items-start q-gutter-sm no-wrap q-mb-md" @submit.prevent="submitHostInvite">
             <q-input
               v-model="hostEmail"
               class="col"
@@ -849,7 +849,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -1057,6 +1057,7 @@ const editForm = reactive({
 
 // ——— Hosts / co-organizer invitations ———
 const hostsDialog = ref(false)
+const hostFormRef = ref(null)
 const hostEmail = ref('')
 const invitingHost = ref(false)
 const loadingHosts = ref(false)
@@ -1066,6 +1067,7 @@ const removingHostId = ref(null)
 function openHostsDialog() {
   hostEmail.value = ''
   hostsDialog.value = true
+  nextTick(() => hostFormRef.value?.resetValidation())
   loadHosts()
 }
 
@@ -1087,6 +1089,8 @@ async function submitHostInvite() {
     await inviteSessionHost(sessionId, hostEmail.value.trim())
     $q.notify({ type: 'positive', message: `Invitation sent to ${hostEmail.value.trim()}.` })
     hostEmail.value = ''
+    // Clear the "required" error that would otherwise flash on the now-empty field.
+    nextTick(() => hostFormRef.value?.resetValidation())
     await loadHosts()
   } catch (e) {
     $q.notify({
