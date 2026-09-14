@@ -15,7 +15,11 @@ Full product/technical design: [docs/OPEN_PLAY_QUEUING_APP.md](../docs/OPEN_PLAY
 - **Organizer console** — session wizard, live court board (stage → call →
   start → score, with match-quality explanations), queue management
   (breaks, no-shows, injuries, reinstates), walk-in/guest registration,
-  result corrections.
+  result corrections, and **host invitations** (invite a co-host by email;
+  they get full control of that one session on accept).
+- **Host invitations** — invitees accept from a **Host invitations** section
+  on their profile (`/me`) or via the emailed **`/invite/:token`** landing,
+  which walks a new user through sign-up then acceptance.
 - **Public surfaces** — `/join/:code` QR landing and `/display/:code`
   chrome-free TV board with the session QR.
 

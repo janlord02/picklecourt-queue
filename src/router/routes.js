@@ -18,6 +18,13 @@ const routes = [
         meta: { requiresAuth: true },
       },
       { path: 'me', name: 'me', component: () => import('pages/player/ProfilePage.vue') },
+      // Host-invitation landing (public; the page handles sign-in/sign-up
+      // itself so a not-yet-registered invitee can create an account first).
+      {
+        path: 'invite/:token',
+        name: 'invite-accept',
+        component: () => import('pages/player/InviteAcceptPage.vue'),
+      },
     ],
   },
 
