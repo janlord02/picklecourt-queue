@@ -6,6 +6,17 @@ first.
 
 ## 2026-09
 
+- **Host invitations — invite & accept** — organizers can add a co-host to a
+  queue session by email: an **Invite host** button in the console header
+  (`LivePage`) opens a sheet to invite and to see/remove current hosts. The
+  invited person accepts from a new **Host invitations** section on their
+  profile (`/me`), or via the emailed **`/invite/:token`** landing page — which
+  funnels a not-yet-registered invitee through sign-up (with the invited email)
+  then straight back to accept. On accept they're taken to the organizer console
+  for that session and get full control (matchmaking, courts, scoring) of that
+  one session. New `InviteAcceptPage.vue`; API helpers in `src/api/openPlay.js`
+  (`listSessionHosts`/`inviteSessionHost`/`removeSessionHost`,
+  `getInvitation`/`listMyInvitations`/`acceptInvitation`/`declineInvitation`).
 - **"Own a court?" lead-gen banner** — the queue app gets its version of
   the booking frontend's RegisterCourtBanner: a dismissible card docked
   bottom-right ("OWN A COURT? · List your court on PickleCourt now" with

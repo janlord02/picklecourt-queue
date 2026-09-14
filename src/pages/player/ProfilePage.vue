@@ -82,6 +82,39 @@
           </div>
         </div>
 
+        <!-- Host invitations awaiting a response -->
+        <div v-if="invitations.length" class="play-card q-mb-md">
+          <div class="row items-center no-wrap q-mb-sm" style="gap: 8px">
+            <q-icon name="eva-email-outline" color="primary" />
+            <span class="text-subtitle2 text-weight-bold">Host invitations</span>
+            <q-badge color="primary" :label="invitations.length" />
+          </div>
+          <div
+            v-for="inv in invitations"
+            :key="inv.id"
+            class="invite-row"
+          >
+            <div class="col">
+              <div class="text-weight-bold ellipsis">{{ inv.session_title }}</div>
+              <div class="text-caption text-grey-7">
+                Invited by {{ inv.invited_by || 'an organizer' }}<template v-if="inv.business_name"> · {{ inv.business_name }}</template>
+              </div>
+            </div>
+            <div class="row items-center q-gutter-xs no-wrap">
+              <q-btn
+                dense no-caps unelevated color="primary" label="Accept" size="sm"
+                :loading="actingId === inv.id"
+                @click="acceptInvite(inv)"
+              />
+              <q-btn
+                dense no-caps flat color="grey-7" label="Decline" size="sm"
+                :disable="actingId === inv.id"
+                @click="declineInvite(inv)"
+              />
+            </div>
+          </div>
+        </div>
+
         <q-list class="play-card q-pa-none" separator>
           <q-item
             v-if="playStore.sessionId && playStore.session"
@@ -201,7 +234,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
-import { getMyStats, listSessions, playerAction } from 'src/api/openPlay'
+import {
+  getMyStats,
+  listSessions,
+  playerAction,
+  listMyInvitations,
+  acceptInvitation,
+  declineInvitation,
+} from 'src/api/openPlay'
 import { useAuthStore } from 'src/stores/auth'
 import { usePlaySessionStore } from 'src/stores/playSession'
 import { statusLabel } from 'src/utils/format'
@@ -212,6 +252,8 @@ const auth = useAuthStore()
 const playStore = usePlaySessionStore()
 
 const myStats = ref(null)
+const invitations = ref([])
+const actingId = ref(null)
 
 onMounted(() => {
   if (auth.isAuthenticated) {
@@ -220,8 +262,49 @@ onMounted(() => {
         myStats.value = data
       })
       .catch(() => {})
+    loadInvitations()
   }
 })
+
+async function loadInvitations() {
+  try {
+    invitations.value = await listMyInvitations()
+  } catch {
+    invitations.value = []
+  }
+}
+
+async function acceptInvite(inv) {
+  actingId.value = inv.id
+  try {
+    const result = await acceptInvitation(inv.token)
+    $q.notify({ type: 'positive', message: `You're now a host of ${inv.session_title}.` })
+    invitations.value = invitations.value.filter((i) => i.id !== inv.id)
+    // Send them straight to the queue console if it already exists.
+    if (result?.play_session_id) {
+      router.push({ name: 'organizer-live', params: { id: result.play_session_id } })
+    } else {
+      router.push({ name: 'organizer-sessions' })
+    }
+  } catch (e) {
+    $q.notify({ type: 'negative', message: e.response?.data?.message || 'Could not accept the invitation.' })
+  } finally {
+    actingId.value = null
+  }
+}
+
+async function declineInvite(inv) {
+  actingId.value = inv.id
+  try {
+    await declineInvitation(inv.token)
+    invitations.value = invitations.value.filter((i) => i.id !== inv.id)
+    $q.notify({ type: 'info', message: 'Invitation declined.' })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: e.response?.data?.message || 'Could not decline.' })
+  } finally {
+    actingId.value = null
+  }
+}
 
 // The login/handoff payload carries the user's business memberships —
 // a business on the platform IS a PickleCourt booking subscriber, so
@@ -359,6 +442,17 @@ async function doLogout() {
 .plan-tag--free {
   background: rgba(199, 240, 0, 0.35);
   color: #3c5200;
+}
+
+.invite-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--surface-sunken, #eee);
+}
+.invite-row:first-of-type {
+  border-top: none;
 }
 
 /* Flash icon with a pulsing "live" dot pinned to its corner. */

@@ -23,6 +23,9 @@
           <q-btn flat dense round icon="eva-edit-outline" color="grey-8" @click="openEditSession">
             <q-tooltip>Edit session</q-tooltip>
           </q-btn>
+          <q-btn v-if="playStore.canManage" flat dense round icon="eva-person-add-outline" color="grey-8" @click="openHostsDialog">
+            <q-tooltip>Invite host</q-tooltip>
+          </q-btn>
           <q-btn flat dense round icon="eva-tv-outline" color="grey-8" @click="openDisplay">
             <q-tooltip>Open TV board</q-tooltip>
           </q-btn>
@@ -728,6 +731,59 @@
       </q-card>
     </q-dialog>
 
+    <!-- Invite / manage hosts -->
+    <q-dialog v-model="hostsDialog" position="bottom">
+      <q-card class="sheet">
+        <q-card-section class="q-pa-md">
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">Hosts</div>
+          <div class="text-caption text-grey-7 q-mb-md">
+            Invite someone by email to co-host this session. They'll accept in their
+            profile and can then run the queue. Access applies only to this session.
+          </div>
+          <q-form class="row items-start q-gutter-sm no-wrap q-mb-md" @submit.prevent="submitHostInvite">
+            <q-input
+              v-model="hostEmail"
+              class="col"
+              outlined
+              dense
+              type="email"
+              label="Host email"
+              hide-bottom-space
+              :rules="[(v) => !!v || 'Email is required', (v) => /.+@.+\..+/.test(v) || 'Enter a valid email']"
+            />
+            <q-btn
+              color="primary" unelevated no-caps label="Invite" type="submit"
+              :loading="invitingHost" :disable="!hostEmail" style="min-height: 40px"
+            />
+          </q-form>
+
+          <div v-if="loadingHosts" class="text-center q-pa-md"><q-spinner size="24px" color="primary" /></div>
+          <div v-else-if="!hosts.length" class="text-caption text-grey-6 q-pb-sm">No hosts yet.</div>
+          <template v-else>
+            <div
+              v-for="h in hosts"
+              :key="h.id"
+              class="row items-center no-wrap q-py-sm"
+              style="border-top: 1px solid var(--surface-sunken, #eee)"
+            >
+              <div class="col">
+                <div class="text-weight-bold ellipsis">{{ h.name || h.email }}</div>
+                <div class="text-caption text-grey-7">
+                  <span v-if="h.name">{{ h.email }} · </span>{{ h.status === 'accepted' ? 'Host' : 'Invited' }}
+                </div>
+              </div>
+              <q-btn
+                flat dense no-caps color="negative" size="sm"
+                :label="h.status === 'accepted' ? 'Remove' : 'Cancel'"
+                :loading="removingHostId === h.id"
+                @click="removeHost(h)"
+              />
+            </div>
+          </template>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
     <!-- Rename court -->
     <q-dialog v-model="renameDialog" position="bottom">
       <q-card class="sheet">
@@ -812,6 +868,9 @@ import {
   updateCourt,
   updateSession,
   updateTeams,
+  listSessionHosts,
+  inviteSessionHost,
+  removeSessionHost,
 } from 'src/api/openPlay'
 import MatchTeams from 'src/components/MatchTeams.vue'
 import PlayerActionMenu from 'src/components/PlayerActionMenu.vue'
@@ -995,6 +1054,62 @@ const editForm = reactive({
   format: 'smart',
   max_players: null,
 })
+
+// ——— Hosts / co-organizer invitations ———
+const hostsDialog = ref(false)
+const hostEmail = ref('')
+const invitingHost = ref(false)
+const loadingHosts = ref(false)
+const hosts = ref([])
+const removingHostId = ref(null)
+
+function openHostsDialog() {
+  hostEmail.value = ''
+  hostsDialog.value = true
+  loadHosts()
+}
+
+async function loadHosts() {
+  loadingHosts.value = true
+  try {
+    hosts.value = await listSessionHosts(sessionId)
+  } catch {
+    hosts.value = []
+  } finally {
+    loadingHosts.value = false
+  }
+}
+
+async function submitHostInvite() {
+  if (!hostEmail.value) return
+  invitingHost.value = true
+  try {
+    await inviteSessionHost(sessionId, hostEmail.value.trim())
+    $q.notify({ type: 'positive', message: `Invitation sent to ${hostEmail.value.trim()}.` })
+    hostEmail.value = ''
+    await loadHosts()
+  } catch (e) {
+    $q.notify({
+      type: 'negative',
+      message: e.response?.data?.message || e.response?.data?.errors?.email?.[0] || 'Could not send the invite.',
+    })
+  } finally {
+    invitingHost.value = false
+  }
+}
+
+async function removeHost(h) {
+  removingHostId.value = h.id
+  try {
+    await removeSessionHost(sessionId, h.id)
+    $q.notify({ type: 'positive', message: 'Host access removed.' })
+    await loadHosts()
+  } catch (e) {
+    $q.notify({ type: 'negative', message: e.response?.data?.message || 'Could not remove.' })
+  } finally {
+    removingHostId.value = null
+  }
+}
 
 const formatOptions = FORMAT_OPTIONS
 

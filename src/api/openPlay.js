@@ -90,3 +90,18 @@ export const setLockedPartner = (sessionId, playerId, partnerId) =>
   api
     .patch(`/play/sessions/${sessionId}/players/${playerId}`, { locked_partner_id: partnerId })
     .then(unwrap)
+
+// ——— host/organizer invitations ———
+// Organizer side: manage the hosts of a queue session.
+export const listSessionHosts = (id) => api.get(`/play/sessions/${id}/hosts`).then(unwrap)
+export const inviteSessionHost = (id, email) =>
+  api.post(`/play/sessions/${id}/hosts`, { email }).then(unwrap)
+export const removeSessionHost = (id, invitationId) =>
+  api.delete(`/play/sessions/${id}/hosts/${invitationId}`).then(unwrap)
+// Invitee side (note: /host-invitations lives under /api, not /play).
+export const getInvitation = (token) => api.get(`/host-invitations/${token}`).then(unwrap)
+export const listMyInvitations = () => api.get('/host-invitations').then(unwrap)
+export const acceptInvitation = (token) =>
+  api.post(`/host-invitations/${token}/accept`).then(unwrap)
+export const declineInvitation = (token) =>
+  api.post(`/host-invitations/${token}/decline`).then(unwrap)
