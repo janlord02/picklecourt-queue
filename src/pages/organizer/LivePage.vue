@@ -862,6 +862,7 @@ import {
   scoreMatch,
   amendMatch,
   setLockedPartner,
+  updatePlayerName,
   stageMatch,
   startMatch,
   suggestMatches,
@@ -1592,6 +1593,24 @@ async function onPlayerAction({ player, action, extra }) {
     } catch (e) {
       notifyError(e, 'Could not unlock the partner')
     }
+    return
+  }
+  // Rename a guest — a small prompt, then persist.
+  if (action === 'edit_name') {
+    $q.dialog({
+      title: 'Edit name',
+      message: 'Update this guest player’s name.',
+      prompt: { model: player.display_name || '', type: 'text', isValid: (v) => !!v && v.trim().length > 0 },
+      cancel: true,
+      ok: { label: 'Save', unelevated: true, color: 'primary' },
+    }).onOk(async (val) => {
+      try {
+        await updatePlayerName(sessionId, player.id, val.trim())
+        await refresh()
+      } catch (e) {
+        notifyError(e, 'Could not update the name')
+      }
+    })
     return
   }
 

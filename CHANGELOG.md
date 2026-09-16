@@ -6,6 +6,7 @@ first.
 
 ## 2026-09
 
+- **Edit a guest's name** — the player action menu (session → Players) gains an **Edit name** action for guest players (a quick prompt). It's shown grayed out with a "From account" caption for registered users, whose name comes from their account.
 - **Host invitations: labeled button + validation fix** — the organizer console's invite-host control now shows an icon **+ "Host"** label (was icon-only), and its email field no longer flashes "Email is required" after a successful invite (validation is reset when the field clears).
 - **Host invitations — invite & accept** — organizers can add a co-host to a
   queue session by email: an **Invite host** button in the console header

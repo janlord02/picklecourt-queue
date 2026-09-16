@@ -91,6 +91,13 @@ export const setLockedPartner = (sessionId, playerId, partnerId) =>
     .patch(`/play/sessions/${sessionId}/players/${playerId}`, { locked_partner_id: partnerId })
     .then(unwrap)
 
+// Rename a GUEST player (organizer-only; the backend rejects renaming a
+// registered user, whose name comes from their account). No state transition.
+export const updatePlayerName = (sessionId, playerId, displayName) =>
+  api
+    .patch(`/play/sessions/${sessionId}/players/${playerId}`, { display_name: displayName })
+    .then(unwrap)
+
 // ——— host/organizer invitations ———
 // Organizer side: manage the hosts of a queue session.
 export const listSessionHosts = (id) => api.get(`/play/sessions/${id}/hosts`).then(unwrap)

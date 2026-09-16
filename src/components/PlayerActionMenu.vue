@@ -5,7 +5,8 @@
         <q-item
           v-for="option in options"
           :key="option.action"
-          clickable
+          :clickable="!option.disabled"
+          :disable="option.disabled"
           @click="emitAction(option)"
         >
           <q-item-section avatar>
@@ -13,6 +14,7 @@
           </q-item-section>
           <q-item-section :class="option.color ? `text-${option.color}` : ''">
             {{ option.label }}
+            <q-item-label v-if="option.caption" caption>{{ option.caption }}</q-item-label>
           </q-item-section>
         </q-item>
         <q-item v-if="!options.length" disable>
@@ -56,6 +58,20 @@ const options = computed(() => {
   if (status === 'cooling_down') {
     acts.push({ action: 'reinstate', label: 'Skip cooldown', icon: 'eva-flash-outline' })
   }
+  // Edit name — only meaningful for guests (registered users' names come from
+  // their account, so the item is shown grayed out for them). Not offered
+  // while the player is actively in a match.
+  if (!['up_next', 'called', 'playing'].includes(status)) {
+    const isGuest = props.player?.is_guest || !props.player?.user_id
+    acts.push({
+      action: 'edit_name',
+      label: 'Edit name',
+      icon: 'eva-edit-2-outline',
+      disabled: !isGuest,
+      caption: isGuest ? null : 'From account',
+    })
+  }
+
   // Partner lock (handled by the page, not a queue transition): pairs stay
   // on the same team in every generated match until unlocked.
   if (!['checked_out', 'no_show'].includes(status)) {
@@ -69,6 +85,7 @@ const options = computed(() => {
 })
 
 function emitAction(option) {
+  if (option.disabled) return
   emit('action', { player: props.player, action: option.action, extra: option.extra })
 }
 </script>
