@@ -87,10 +87,18 @@
       <main v-else class="display-grid">
         <!-- Courts -->
         <section class="display-courts">
-          <div v-for="court in state.courts" :key="court.id" class="display-court">
+          <div
+            v-for="court in state.courts"
+            :key="court.id"
+            class="display-court"
+            :class="{ 'display-court--ondeck': isOnDeck(court) }"
+          >
             <div class="display-court-head">
               <span class="display-court-label">{{ court.label }}</span>
-              <span class="display-court-status">
+              <span v-if="isOnDeck(court)" class="display-ondeck-badge">
+                <q-icon name="eva-arrow-circle-right-outline" />On deck
+              </span>
+              <span v-else class="display-court-status">
                 <i class="display-dot" :class="`display-dot--${court.status}`" />
                 {{ courtStatusLabel(court.status) }}
               </span>
@@ -111,17 +119,69 @@
           </div>
         </section>
 
-        <!-- Queue -->
+        <!-- Waiting line. Winners & Losers runs two separate feeder pools, so
+             show them side by side; other formats are a single ordered list. -->
         <aside class="display-queue">
-          <div class="display-queue-title">Up next</div>
-          <div v-for="entry in queueRows" :key="entry.player_id" class="display-queue-row">
-            <span class="display-queue-pos">{{ entry.position }}</span>
-            <span class="display-queue-name">{{ nameOf(entry.player_id) }}</span>
-            <span class="display-queue-wait">{{ formatSeconds(entry.effective_wait_seconds) }}</span>
+          <div class="display-queue-title">{{ queueTitle }}</div>
+
+          <div v-if="isWinnersLosers" class="display-pool-cols">
+            <div class="display-pool-col">
+              <div class="display-pool-head display-pool-head--win">Winners</div>
+              <div
+                v-for="(entry, i) in winnersQueue"
+                :key="entry.player_id"
+                class="display-queue-row"
+              >
+                <span class="display-queue-pos">{{ i + 1 }}</span>
+                <span class="display-queue-name">{{ nameOf(entry.player_id) }}</span>
+                <span v-if="partnerNameOf(entry.player_id)" class="display-pair-tag">
+                  <q-icon name="eva-link-outline" />{{ partnerNameOf(entry.player_id) }}
+                </span>
+                <span class="display-queue-wait">{{
+                  formatSeconds(entry.effective_wait_seconds)
+                }}</span>
+              </div>
+              <div v-if="!winnersQueue.length" class="display-sub q-mt-sm">Nobody yet</div>
+            </div>
+
+            <div class="display-pool-col">
+              <div class="display-pool-head display-pool-head--challenger">Challengers</div>
+              <div
+                v-for="(entry, i) in challengersQueue"
+                :key="entry.player_id"
+                class="display-queue-row"
+              >
+                <span class="display-queue-pos">{{ i + 1 }}</span>
+                <span class="display-queue-name">{{ nameOf(entry.player_id) }}</span>
+                <span v-if="partnerNameOf(entry.player_id)" class="display-pair-tag">
+                  <q-icon name="eva-link-outline" />{{ partnerNameOf(entry.player_id) }}
+                </span>
+                <span class="display-queue-wait">{{
+                  formatSeconds(entry.effective_wait_seconds)
+                }}</span>
+              </div>
+              <div v-if="!challengersQueue.length" class="display-sub q-mt-sm">Nobody yet</div>
+            </div>
           </div>
-          <div v-if="!queueRows.length" class="display-sub q-mt-md">Queue is empty</div>
+
+          <template v-else>
+            <div v-for="entry in queueRows" :key="entry.player_id" class="display-queue-row">
+              <span class="display-queue-pos">{{ entry.position }}</span>
+              <span class="display-queue-name">{{ nameOf(entry.player_id) }}</span>
+              <span v-if="partnerNameOf(entry.player_id)" class="display-pair-tag">
+                <q-icon name="eva-link-outline" />{{ partnerNameOf(entry.player_id) }}
+              </span>
+              <span class="display-queue-wait">{{
+                formatSeconds(entry.effective_wait_seconds)
+              }}</span>
+            </div>
+            <div v-if="!queueRows.length" class="display-sub q-mt-md">Queue is empty</div>
+          </template>
         </aside>
       </main>
+
+      <!-- Branding + lead-gen (Powered by · "Own a court?" promo) -->
+      <DisplayPromo />
     </template>
   </div>
 </template>
@@ -132,6 +192,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import logoUrl from 'src/assets/logo.png'
 import { getDisplayState } from 'src/api/openPlay'
+import DisplayPromo from 'src/components/DisplayPromo.vue'
 import VoiceSettingsSheet from 'src/components/VoiceSettingsSheet.vue'
 import { useAnnouncer, useCallAnnouncer } from 'src/composables/useAnnouncer'
 import { usePlayDisplayRealtime } from 'src/composables/usePlayRealtime'
@@ -174,6 +235,47 @@ function teamNames(team) {
 
 function nameOf(playerId) {
   return state.value?.players?.find((p) => p.id === playerId)?.display_name || '—'
+}
+
+function playerFor(playerId) {
+  return state.value?.players?.find((p) => p.id === playerId) || null
+}
+
+// Locked doubles partner — shown as a pill so pairs read at a glance on the TV.
+function partnerNameOf(playerId) {
+  const player = playerFor(playerId)
+  if (!player?.locked_partner_id) return null
+  return nameOf(player.locked_partner_id)
+}
+
+// Winners & Losers runs two feeder pools; the board shows them separately.
+const isWinnersLosers = computed(() => state.value?.session?.format === 'winners_losers')
+
+// FIFO's queue really is "next up"; every other format is a waiting line, not
+// a literal next-match prediction (Smart re-orders by priority, Winners &
+// Losers pulls from a pool) — so name it honestly.
+const queueTitle = computed(() =>
+  state.value?.session?.format === 'fifo' ? 'Up next' : 'Waiting',
+)
+
+// A queued player feeds the winners pool when they won their last game,
+// otherwise the challenger pool (new players included).
+const winnersQueue = computed(() =>
+  (state.value?.queue || [])
+    .filter((e) => playerFor(e.player_id)?.last_game_result === 'win')
+    .slice(0, 8),
+)
+const challengersQueue = computed(() =>
+  (state.value?.queue || [])
+    .filter((e) => playerFor(e.player_id)?.last_game_result !== 'win')
+    .slice(0, 8),
+)
+
+// A staged/called match is the real "on deck" game for ANY format — the engine
+// has already resolved the correct pool/balanced teams onto this court.
+function isOnDeck(court) {
+  const match = matchFor(court)
+  return !!match && (match.status === 'staged' || match.status === 'called')
 }
 
 // Live court timers
@@ -625,11 +727,87 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .display-queue-wait {
   margin-left: auto;
   color: #8fb5a9;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+.display-pair-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(199, 240, 0, 0.14);
+  color: #c7f000;
+  font-size: clamp(11px, 1.1vw, 15px);
+  font-weight: 700;
+  white-space: nowrap;
+  flex: none;
+}
+.display-pair-tag .q-icon {
+  font-size: 1em;
+}
+/* On-deck court: the real "up next" match for any format */
+.display-court--ondeck {
+  border-color: #c7f000;
+  box-shadow:
+    0 0 0 2px rgba(199, 240, 0, 0.5),
+    0 0 24px rgba(199, 240, 0, 0.18);
+}
+.display-ondeck-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: #c7f000;
+  color: #17321f;
+  font-size: clamp(11px, 1.1vw, 14px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.display-ondeck-badge .q-icon {
+  font-size: 1.1em;
+}
+
+/* Waiting: two feeder pools for Winners & Losers */
+.display-pool-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+.display-pool-col {
+  min-width: 0;
+}
+.display-pool-head {
+  font-weight: 800;
+  font-size: clamp(11px, 1.1vw, 14px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 0 6px;
+  border-bottom: 2px solid transparent;
+}
+.display-pool-head--win {
+  color: #c7f000;
+  border-bottom-color: rgba(199, 240, 0, 0.5);
+}
+.display-pool-head--challenger {
+  color: #cfe3db;
+  border-bottom-color: rgba(255, 255, 255, 0.18);
+}
+.display-pool-col .display-queue-row {
+  gap: 8px;
+  font-size: clamp(13px, 1.2vw, 17px);
+  padding: 7px 0;
+}
+.display-pool-col .display-queue-pos {
+  width: 20px;
 }
 </style>

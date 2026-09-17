@@ -35,8 +35,10 @@ export default defineConfig((/* ctx */) => {
 
     devServer: {
       open: true,
-      // Booking frontend runs on 9000; keep the queuing app side-by-side on 9100.
-      port: 9100,
+      // Booking frontend runs on 9000; keep the queuing app side-by-side on 9101.
+      // Must match the backend's QUEUE_APP_URL (organizer/display/join links are
+      // built from it) and be in CORS_ALLOWED_ORIGINS.
+      port: 9101,
       // Capacitor live reload loads http://LAN_IP:95xx — API calls to same origin /api avoid WKWebView CORS.
       proxy: {
         '/api': {
