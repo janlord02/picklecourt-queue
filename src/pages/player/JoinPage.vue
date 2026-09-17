@@ -25,7 +25,31 @@
           players
         </div>
 
-        <template v-if="session.joinable">
+        <!-- Already checked in: don't offer "Check in" again (a second
+             check-in duplicates the player's name). Steer them to the board. -->
+        <template v-if="session.already_joined">
+          <div class="text-positive text-weight-bold q-mb-md">
+            <q-icon name="eva-checkmark-circle-2" size="20px" class="q-mr-xs" />You're already checked in
+          </div>
+          <q-btn
+            class="big-action full-width q-mb-sm"
+            color="primary"
+            unelevated
+            icon="eva-tv-outline"
+            label="View live board"
+            :to="{ name: 'display', params: { code } }"
+          />
+          <q-btn
+            flat
+            no-caps
+            color="primary"
+            class="full-width"
+            label="Go to my queue"
+            @click="goToMyQueue"
+          />
+        </template>
+
+        <template v-else-if="session.joinable">
           <q-btn
             class="big-action full-width q-mb-sm"
             color="primary"
@@ -34,20 +58,32 @@
             :loading="joining"
             @click="joinAndCheckIn"
           />
-          <div class="text-caption text-grey-6">Joins the session and puts you in the queue.</div>
+          <div class="text-caption text-grey-6 q-mb-md">Joins the session and puts you in the queue.</div>
+          <q-btn
+            outline
+            no-caps
+            color="primary"
+            class="full-width"
+            icon="eva-tv-outline"
+            label="View live board instead"
+            :to="{ name: 'display', params: { code } }"
+          />
         </template>
-        <div v-else class="text-caption text-negative">
-          This session is not open for registration.
-        </div>
 
-        <q-btn
-          flat
-          no-caps
-          color="grey-7"
-          class="q-mt-md"
-          label="View live board instead"
-          :to="{ name: 'display', params: { code } }"
-        />
+        <template v-else>
+          <div class="text-caption text-negative q-mb-md">
+            This session is not open for registration.
+          </div>
+          <q-btn
+            outline
+            no-caps
+            color="primary"
+            class="full-width"
+            icon="eva-tv-outline"
+            label="View live board"
+            :to="{ name: 'display', params: { code } }"
+          />
+        </template>
       </div>
     </div>
   </q-page>
@@ -94,6 +130,11 @@ async function joinAndCheckIn() {
   } finally {
     joining.value = false
   }
+}
+
+function goToMyQueue() {
+  playStore.setActive(session.value.id)
+  router.push({ name: 'play' })
 }
 
 onMounted(async () => {

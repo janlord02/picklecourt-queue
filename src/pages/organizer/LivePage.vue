@@ -229,19 +229,40 @@
             <!-- Free court -->
             <div v-else-if="court.status === 'available'" class="court-card-body text-center">
               <template v-if="!readOnly">
-                <q-btn
-                  class="q-mt-sm"
-                  outline
-                  no-caps
-                  color="primary"
-                  icon="eva-flash-outline"
-                  label="Start next"
-                  :disable="playStore.queue.length < 4"
-                  :loading="suggestingCourtId === court.id"
-                  @click="suggestFor(court)"
-                />
-                <div v-if="playStore.queue.length < 4" class="text-caption text-grey-6 q-mt-sm">
-                  Needs {{ 4 - playStore.queue.length }} more waiting
+                <div class="row q-col-gutter-sm q-mt-sm justify-center items-center">
+                  <div class="col-auto">
+                    <q-btn
+                      outline
+                      no-caps
+                      color="primary"
+                      icon="eva-flash-outline"
+                      label="Start next"
+                      :disable="playStore.queue.length < neededPlayers"
+                      :loading="suggestingCourtId === court.id"
+                      @click="suggestFor(court)"
+                    >
+                      <q-tooltip>Auto-pick a balanced match</q-tooltip>
+                    </q-btn>
+                  </div>
+                  <div v-if="isFirstRollout" class="col-auto">
+                    <q-btn
+                      outline
+                      no-caps
+                      color="primary"
+                      icon="eva-people-outline"
+                      label="Choose players"
+                      :disable="choosablePlayers.length < neededPlayers"
+                      @click="openChooseDialog(court)"
+                    >
+                      <q-tooltip>Hand-pick the opening match</q-tooltip>
+                    </q-btn>
+                  </div>
+                </div>
+                <div
+                  v-if="playStore.queue.length < neededPlayers"
+                  class="text-caption text-grey-6 q-mt-sm"
+                >
+                  Needs {{ neededPlayers - playStore.queue.length }} more waiting
                 </div>
               </template>
               <div v-else class="text-caption text-grey-6 q-mt-sm">Session over</div>
@@ -589,9 +610,119 @@
                 <div class="text-caption text-grey-7">
                   {{ candidate.games_played }} games
                   <template v-if="candidate.rating"> · {{ candidate.rating.toFixed(1) }}</template>
+                  <span v-if="partnerNameOf(candidate)" class="pair-tag q-ml-xs">
+                    <q-icon name="eva-link-outline" />
+                    {{ partnerNameOf(candidate) }}
+                  </span>
+                  <span
+                    v-if="poolTagOf(candidate.id)"
+                    class="pool-tag q-ml-xs"
+                    :class="poolTagOf(candidate.id).cls"
+                  >
+                    {{ poolTagOf(candidate.id).label }}
+                  </span>
                 </div>
               </div>
               <StatusChip :status="candidate.status" />
+            </div>
+          </template>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Choose players: hand-pick a match instead of auto-suggest -->
+    <q-dialog v-model="chooseDialog" position="bottom">
+      <q-card class="sheet">
+        <q-card-section class="q-pa-md">
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">
+            Choose players<template v-if="chooseCourt"> — {{ chooseCourt.label }}</template>
+          </div>
+          <div class="text-caption text-grey-7 q-mb-md">
+            Tap {{ neededPlayers }} players in the order you want them paired.
+            <b>{{ chosenIds.length }}/{{ neededPlayers }} picked.</b>
+          </div>
+
+          <div v-if="choosablePlayers.length < neededPlayers" class="text-caption text-grey-6 q-pa-sm">
+            Not enough available players — need {{ neededPlayers }}.
+          </div>
+
+          <template v-else>
+            <div
+              v-for="cand in choosablePlayers"
+              :key="cand.id"
+              class="list-row cursor-pointer"
+              :class="{ 'choose-row--picked': chooseIndex(cand.id) >= 0 }"
+              @click="toggleChoose(cand.id)"
+            >
+              <div
+                class="choose-badge"
+                :class="{ 'choose-badge--on': chooseIndex(cand.id) >= 0 }"
+              >
+                <template v-if="chooseIndex(cand.id) >= 0">{{ chooseIndex(cand.id) + 1 }}</template>
+                <q-icon v-else name="eva-plus-outline" size="16px" />
+              </div>
+              <div class="col">
+                <div class="text-weight-bold">{{ cand.display_name }}</div>
+                <div class="text-caption text-grey-7">
+                  {{ cand.games_played }} games
+                  <template v-if="cand.rating"> · {{ cand.rating.toFixed(1) }}</template>
+                  <span v-if="partnerNameOf(cand)" class="pair-tag q-ml-xs">
+                    <q-icon name="eva-link-outline" />
+                    {{ partnerNameOf(cand) }}
+                  </span>
+                  <span
+                    v-if="poolTagOf(cand.id)"
+                    class="pool-tag q-ml-xs"
+                    :class="poolTagOf(cand.id).cls"
+                  >
+                    {{ poolTagOf(cand.id).label }}
+                  </span>
+                </div>
+              </div>
+              <div class="text-caption text-grey-7 tnum">
+                {{ formatSeconds(cand.effective_wait_seconds) }}
+              </div>
+            </div>
+
+            <!-- Match preview + one-tap swap of the pairing -->
+            <div v-if="chosenIds.length === neededPlayers" class="choose-preview q-mt-md">
+              <div class="row items-center no-wrap">
+                <div class="col">
+                  <div class="micro-label q-mb-xs">Match preview</div>
+                  <div class="text-weight-bold">
+                    {{ chosenTeams.teamA.map((p) => p.display_name).join(' + ') }}
+                  </div>
+                  <div class="text-caption text-grey-6">vs</div>
+                  <div class="text-weight-bold">
+                    {{ chosenTeams.teamB.map((p) => p.display_name).join(' + ') }}
+                  </div>
+                </div>
+                <q-btn
+                  v-if="neededPlayers === 4"
+                  flat
+                  dense
+                  no-caps
+                  color="primary"
+                  icon="eva-swap-outline"
+                  label="Swap"
+                  @click="swapTeams"
+                >
+                  <q-tooltip>Try a different pairing</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+
+            <div class="row justify-end q-mt-md" style="gap: 8px">
+              <q-btn flat no-caps color="grey-8" label="Cancel" @click="chooseDialog = false" />
+              <q-btn
+                unelevated
+                no-caps
+                color="primary"
+                label="Stage match"
+                :disable="chosenIds.length !== neededPlayers"
+                :loading="staging"
+                @click="stageChosen"
+              />
             </div>
           </template>
         </q-card-section>
@@ -1333,12 +1464,23 @@ const benchCandidates = computed(() => {
 function applyReplace(inPlayer) {
   const warnings = []
 
-  // Queue jump: someone else has waited longer than the chosen sub.
+  // Queue jump: someone else has waited longer than the chosen sub. Show the
+  // wait time of everyone ahead of them so the organizer can weigh the call.
   if (inPlayer.status === 'waiting') {
     const position = playStore.queue.findIndex((q) => q.player_id === inPlayer.id)
     if (position > 0) {
+      const inWait = formatSeconds(inPlayer.effective_wait_seconds)
+      const ahead = playStore.queue
+        .slice(0, position)
+        .map((q) => {
+          const p = playerById(q.player_id)
+          return p ? `${p.display_name} (${formatSeconds(q.effective_wait_seconds)})` : null
+        })
+        .filter(Boolean)
+      const shown = ahead.slice(0, 6)
+      const extra = ahead.length - shown.length
       warnings.push(
-        `${position} waiting ${position === 1 ? 'player has' : 'players have'} been waiting longer than ${inPlayer.display_name}.`,
+        `${position} waiting ${position === 1 ? 'player has' : 'players have'} been waiting longer than ${inPlayer.display_name} (${inWait}): ${shown.join(', ')}${extra > 0 ? `, +${extra} more` : ''}.`,
       )
     }
   }
@@ -1366,6 +1508,146 @@ function applyReplace(inPlayer) {
       await refresh()
     } catch (e) {
       notifyError(e, 'Could not replace the player')
+    }
+  })
+}
+
+// ——— Choose players (manual match): hand-pick who plays instead of the
+// auto-suggest engine. Works for every format — all matches are doubles, and
+// the format only changes how AUTO picks; a manual match just stages the
+// exact players chosen. ———
+const chooseDialog = ref(false)
+const chooseCourt = ref(null)
+const chosenIds = ref([]) // ordered selection of player ids
+const arrangementIndex = ref(0)
+const staging = ref(false)
+
+// team_size comes from session settings (doubles by default); two teams of it.
+const teamSize = computed(() => Number(playStore.session?.settings?.team_size) || 2)
+const neededPlayers = computed(() => teamSize.value * 2)
+
+// "Choose players" (manual pick) is only offered on the FIRST roll-out —
+// while seeding the opening matches, before any game has finished. Once the
+// first game completes, courts fill via auto "Start next" only.
+const isFirstRollout = computed(() => (playStore.stats?.games_completed || 0) === 0)
+
+// The three distinct doubles pairings for four chosen players (indices into
+// the ordered selection) — "Swap" cycles through them.
+const ARRANGEMENTS = [
+  [[0, 1], [2, 3]],
+  [[0, 2], [1, 3]],
+  [[0, 3], [1, 2]],
+]
+
+// Who can be dropped into a manual match: the waiting queue (in order, with
+// their live wait) followed by cooling-down players.
+const choosablePlayers = computed(() => {
+  const queued = playStore.queue
+    .map((entry) => {
+      const p = playerById(entry.player_id)
+      return p ? { ...p, effective_wait_seconds: entry.effective_wait_seconds } : null
+    })
+    .filter(Boolean)
+  const cooling = playStore.players
+    .filter((p) => p.status === 'cooling_down')
+    .map((p) => ({ ...p, effective_wait_seconds: p.effective_wait_seconds || 0 }))
+  return [...queued, ...cooling]
+})
+
+const chosenTeams = computed(() => {
+  const ids = chosenIds.value
+  const half = teamSize.value
+  if (ids.length === 4) {
+    const [aIdx, bIdx] = ARRANGEMENTS[arrangementIndex.value % ARRANGEMENTS.length]
+    return {
+      teamA: aIdx.map((i) => playerById(ids[i])).filter(Boolean),
+      teamB: bIdx.map((i) => playerById(ids[i])).filter(Boolean),
+    }
+  }
+  return {
+    teamA: ids.slice(0, half).map((id) => playerById(id)).filter(Boolean),
+    teamB: ids.slice(half, half * 2).map((id) => playerById(id)).filter(Boolean),
+  }
+})
+
+function openChooseDialog(court) {
+  chooseCourt.value = court
+  chosenIds.value = []
+  arrangementIndex.value = 0
+  chooseDialog.value = true
+}
+
+function chooseIndex(id) {
+  return chosenIds.value.indexOf(id)
+}
+
+function toggleChoose(id) {
+  const idx = chosenIds.value.indexOf(id)
+  if (idx >= 0) {
+    chosenIds.value.splice(idx, 1)
+  } else if (chosenIds.value.length < neededPlayers.value) {
+    chosenIds.value.push(id)
+  } else {
+    $q.notify({ message: `Pick ${neededPlayers.value} players.`, color: 'warning' })
+    return
+  }
+  arrangementIndex.value = 0 // selection changed — reset the pairing
+}
+
+function swapTeams() {
+  if (chosenIds.value.length === 4) {
+    arrangementIndex.value = (arrangementIndex.value + 1) % ARRANGEMENTS.length
+  }
+}
+
+// Advisory: which waiting players got skipped by this manual pick (with their
+// wait times), shown in the "review before continuing" dialog.
+function chooseFairnessWarnings(ids) {
+  const chosen = new Set(ids)
+  let deepest = -1
+  playStore.queue.forEach((q, idx) => {
+    if (chosen.has(q.player_id)) deepest = idx
+  })
+  const skipped = []
+  for (let i = 0; i < deepest; i++) {
+    const entry = playStore.queue[i]
+    if (chosen.has(entry.player_id)) continue
+    const p = playerById(entry.player_id)
+    if (p) skipped.push(`${p.display_name} (${formatSeconds(entry.effective_wait_seconds)})`)
+  }
+  if (!skipped.length) return []
+  const shown = skipped.slice(0, 6)
+  const extra = skipped.length - shown.length
+  return [
+    `${skipped.length} waiting ${skipped.length === 1 ? 'player was' : 'players were'} skipped: ${shown.join(', ')}${extra > 0 ? `, +${extra} more` : ''}.`,
+  ]
+}
+
+function stageChosen() {
+  const { teamA, teamB } = chosenTeams.value
+  if (teamA.length !== teamSize.value || teamB.length !== teamSize.value) {
+    $q.notify({ message: `Pick ${neededPlayers.value} players.`, color: 'warning' })
+    return
+  }
+  const teamAIds = teamA.map((p) => p.id)
+  const teamBIds = teamB.map((p) => p.id)
+  const warnings = chooseFairnessWarnings([...teamAIds, ...teamBIds])
+
+  withFairnessCheck(warnings, async () => {
+    staging.value = true
+    try {
+      await stageMatch(sessionId, {
+        team_a: teamAIds,
+        team_b: teamBIds,
+        court_id: chooseCourt.value.id,
+        created_by: 'manual',
+      })
+      chooseDialog.value = false
+      await refresh()
+    } catch (e) {
+      notifyError(e, 'Could not stage the match')
+    } finally {
+      staging.value = false
     }
   })
 }

@@ -496,3 +496,37 @@ body {
   background: var(--surface-sunken);
   color: var(--ink-muted);
 }
+
+// ——— Choose players (manual match) ———
+.choose-badge {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  color: var(--ink-muted);
+  font-weight: 800;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.choose-badge--on {
+  background: var(--brand-teal);
+  border-color: var(--brand-teal);
+  color: #fff;
+}
+
+.choose-row--picked {
+  background: rgba(44, 134, 112, 0.06);
+  border-radius: 12px;
+}
+
+.choose-preview {
+  background: var(--surface-sunken);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
