@@ -72,6 +72,15 @@ const options = computed(() => {
     })
   }
 
+  // Skill level — any state (a mid-match change only affects future
+  // matchmaking, not the game in progress).
+  acts.push({
+    action: 'edit_rating',
+    label: 'Edit skill level',
+    icon: 'eva-bar-chart-outline',
+    caption: props.player?.rating ? `Now ${Number(props.player.rating).toFixed(1)}` : 'Unrated',
+  })
+
   // Partner lock (handled by the page, not a queue transition): pairs stay
   // on the same team in every generated match until unlocked.
   if (!['checked_out', 'no_show'].includes(status)) {

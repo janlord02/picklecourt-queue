@@ -373,8 +373,40 @@
             label="Add player or guest"
             @click="addDialog = true"
           />
+          <!-- Search by name + "not checked in" filter, for fast check-in at the door. -->
+          <q-input
+            v-model="playerSearch"
+            outlined
+            dense
+            clearable
+            placeholder="Search player name"
+            class="q-mb-sm"
+            @clear="playerSearch = ''"
+          >
+            <template #prepend><q-icon name="eva-search-outline" /></template>
+          </q-input>
+          <div class="row items-center q-mb-md">
+            <q-chip
+              clickable
+              dense
+              :outline="!playerNotCheckedIn"
+              :color="playerNotCheckedIn ? 'primary' : 'grey-7'"
+              :text-color="playerNotCheckedIn ? 'white' : 'grey-8'"
+              icon="eva-clock-outline"
+              :label="`Not checked in (${notCheckedInCount})`"
+              @click="playerNotCheckedIn = !playerNotCheckedIn"
+            />
+            <q-space />
+            <span v-if="playerFilterActive" class="text-caption text-grey-7">
+              {{ filteredPlayers.length }} of {{ playStore.players.length }}
+            </span>
+          </div>
           <div class="play-card">
-            <div v-for="player in playStore.players" :key="player.id" class="list-row">
+            <div v-if="playerFilterActive && !filteredPlayers.length" class="empty-state">
+              <div class="empty-state-title">No players match</div>
+              <div class="text-caption">Try a different name or clear the filter.</div>
+            </div>
+            <div v-for="player in filteredPlayers" :key="player.id" class="list-row">
               <div class="col cursor-pointer" @click="openPlayerDetail(player.id)">
                 <div class="text-weight-bold">
                   {{ player.display_name }}
@@ -994,6 +1026,7 @@ import {
   amendMatch,
   setLockedPartner,
   updatePlayerName,
+  updatePlayerRating,
   stageMatch,
   startMatch,
   suggestMatches,
@@ -1025,6 +1058,22 @@ const router = useRouter()
 const playStore = usePlaySessionStore()
 
 const tab = ref('courts')
+
+// Players tab: name search + "not checked in" (registered) filter.
+const playerSearch = ref('')
+const playerNotCheckedIn = ref(false)
+// Case- and accent-insensitive ("jose" matches "José").
+const foldText = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+const notCheckedInCount = computed(() => playStore.players.filter((p) => p.status === 'registered').length)
+const playerFilterActive = computed(() => !!foldText(playerSearch.value) || playerNotCheckedIn.value)
+const filteredPlayers = computed(() => {
+  const q = foldText(playerSearch.value)
+  return playStore.players.filter(
+    (p) =>
+      (!playerNotCheckedIn.value || p.status === 'registered') &&
+      (!q || foldText(p.display_name).includes(q)),
+  )
+})
 const filling = ref(false)
 const suggestingCourtId = ref(null)
 const scoreDialog = ref(false)
@@ -1891,6 +1940,38 @@ async function onPlayerAction({ player, action, extra }) {
         await refresh()
       } catch (e) {
         notifyError(e, 'Could not update the name')
+      }
+    })
+    return
+  }
+
+  // Skill level — pick from the standard scale, preselecting the closest
+  // level to the current rating (computed ratings can be e.g. 3.9).
+  if (action === 'edit_rating') {
+    const current = player.rating != null ? Number(player.rating) : null
+    const closest =
+      current == null
+        ? 3.5
+        : RATING_OPTIONS.reduce((best, o) =>
+            Math.abs(o.value - current) < Math.abs(best.value - current) ? o : best,
+          ).value
+    $q.dialog({
+      title: 'Edit skill level',
+      message: `${player.display_name} · currently ${current != null ? current.toFixed(1) : 'unrated'}. Used for balanced matchmaking from the next match on.`,
+      options: {
+        type: 'radio',
+        model: closest,
+        items: RATING_OPTIONS.map((o) => ({ label: o.label, value: o.value })),
+      },
+      cancel: true,
+      ok: { label: 'Save', unelevated: true, color: 'primary' },
+    }).onOk(async (val) => {
+      try {
+        await updatePlayerRating(sessionId, player.id, val)
+        await refresh()
+        $q.notify({ type: 'positive', message: `${player.display_name} set to ${Number(val).toFixed(1)}` })
+      } catch (e) {
+        notifyError(e, 'Could not update the skill level')
       }
     })
     return

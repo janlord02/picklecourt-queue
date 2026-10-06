@@ -98,6 +98,10 @@ export const updatePlayerName = (sessionId, playerId, displayName) =>
     .patch(`/play/sessions/${sessionId}/players/${playerId}`, { display_name: displayName })
     .then(unwrap)
 
+// Organizer sets a player's skill level (rating_source becomes "organizer").
+export const updatePlayerRating = (sessionId, playerId, rating) =>
+  api.patch(`/play/sessions/${sessionId}/players/${playerId}`, { rating }).then(unwrap)
+
 // ——— host/organizer invitations ———
 // Organizer side: manage the hosts of a queue session.
 export const listSessionHosts = (id) => api.get(`/play/sessions/${id}/hosts`).then(unwrap)
