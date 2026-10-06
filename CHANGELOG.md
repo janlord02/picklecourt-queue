@@ -4,6 +4,11 @@ All notable changes to the PickleCourt Play (queuing) app. This project isn't
 formally versioned yet (pre-1.0), so entries are grouped by month. Newest
 first.
 
+## 2026-10
+
+- **Edit a player's skill level in a session** — the organizer's ⋮ player menu (Courts / Queue / Players tabs of `/organizer/sessions/{id}`) gains **Edit skill level** (caption shows the current rating, e.g. "Now 2.8"). It opens a picker with the standard levels used by Add player (2.0 Beginner … 5.0+ Expert), preselecting the closest level to the player's current rating, and saves via `PATCH /play/sessions/{id}/players/{playerId}` `{ rating }` (stored with `rating_source = organizer`). Available in any player state; a change mid-game only affects matchmaking from the next match. New `updatePlayerRating()` in `src/api/openPlay.js`. No backend change — the endpoint already accepted organizer ratings.
+- **Players tab: search + "Not checked in" filter** — the organizer session console (`/organizer/sessions/{id}`, `LivePage`) Players tab gains a **Search player name** box (case- and accent-insensitive, e.g. "jose" finds "José") and a **Not checked in (N)** chip that narrows the list to registered players who haven't arrived yet, so hosts can find someone fast for check-in or any other player action. Shows "X of Y" while filtering and a "No players match" empty state.
+
 ## 2026-09
 
 - **Production build config (`.env.production`)** — added a production env file for the queue app (it previously had none, so a `quasar build` inherited the localhost dev `.env` and broke every request + the websocket in production). Sets `VITE_API_URL=https://api.picklecourt.ph` (mirrors the booking frontend's prod build) and a production Reverb block (TLS/443); the prod `VITE_REVERB_APP_KEY`/`VITE_REVERB_HOST` are left as TODOs to fill from the production backend — realtime safely falls back to polling until they're set. The local dev port (`quasar.config` devServer `9101`) is dev-only and never affects production, which is served on `openplay.picklecourt.ph`.
