@@ -21,6 +21,9 @@
           >
             {{ entry.row.display_name }}
           </div>
+          <span v-if="entry.row.locked_partner_name" class="pair-tag podium-pair">
+            <q-icon name="eva-link-outline" />{{ entry.row.locked_partner_name }}
+          </span>
           <div class="podium-record tnum">{{ entry.row.wins }}–{{ entry.row.losses }}</div>
           <div class="podium-rate">{{ winRate(entry.row) }}</div>
           <div class="podium-step" :style="{ height: `${entry.step}px` }">{{ entry.place }}</div>
@@ -35,7 +38,12 @@
         :class="{ 'text-weight-bold': highlightPlayerId === row.player_id }"
       >
         <div class="rank">{{ i + restOffset + 1 }}</div>
-        <div class="col">{{ row.display_name }}</div>
+        <div class="col">
+          {{ row.display_name }}
+          <span v-if="row.locked_partner_name" class="pair-tag q-ml-xs">
+            <q-icon name="eva-link-outline" />{{ row.locked_partner_name }}
+          </span>
+        </div>
         <div class="text-caption text-grey-6 tnum">{{ winRate(row) }}</div>
         <div class="record tnum">{{ row.wins }}–{{ row.losses }}</div>
       </div>
@@ -146,6 +154,12 @@ function winRate(row) {
   background: rgba(199, 240, 0, 0.22);
   border-color: rgba(140, 170, 0, 0.35);
   color: #3c5200;
+}
+
+.podium-pair {
+  max-width: 100%;
+  overflow: hidden;
+  margin-bottom: 4px;
 }
 
 .rank {
