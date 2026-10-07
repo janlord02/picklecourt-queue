@@ -64,6 +64,9 @@
           >
             <div class="display-podium-medal">{{ entry.medal }}</div>
             <div class="display-podium-name">{{ entry.row.display_name }}</div>
+            <span v-if="entry.row.locked_partner_name" class="display-pair-tag display-pair-tag--podium">
+              <q-icon name="eva-link-outline" />{{ entry.row.locked_partner_name }}
+            </span>
             <div class="display-podium-record">{{ entry.row.wins }}–{{ entry.row.losses }}</div>
             <div class="display-podium-step" :style="{ height: `${entry.step}px` }">
               {{ entry.place }}
@@ -75,6 +78,9 @@
           <div v-for="(row, i) in finalRest" :key="row.player_id" class="display-final-row">
             <span class="display-final-rank">{{ i + (finalPodium ? 4 : 1) }}</span>
             <span class="display-final-name">{{ row.display_name }}</span>
+            <span v-if="row.locked_partner_name" class="display-pair-tag">
+              <q-icon name="eva-link-outline" />{{ row.locked_partner_name }}
+            </span>
             <span class="display-final-record">{{ row.wins }}–{{ row.losses }}</span>
           </div>
         </div>
@@ -108,9 +114,24 @@
             </div>
             <template v-if="matchFor(court)">
               <div class="display-court-body">
-                <div class="display-team">{{ teamNames(matchFor(court).team_a) }}</div>
-                <div class="display-vs"><span>vs</span></div>
-                <div class="display-team">{{ teamNames(matchFor(court).team_b) }}</div>
+                <div
+                  v-for="(team, t) in [matchFor(court).team_a, matchFor(court).team_b]"
+                  :key="t"
+                  class="display-team-wrap"
+                >
+                  <div v-if="t === 1" class="display-vs"><span>vs</span></div>
+                  <div class="display-team">
+                    <template v-for="(slot, i) in team" :key="slot.player_id">
+                      <q-icon
+                        v-if="i > 0 && isLockedPair(team)"
+                        name="eva-link-outline"
+                        class="display-team-link"
+                        title="Locked partners"
+                      />
+                      <span v-else-if="i > 0"> + </span>{{ slot.display_name }}
+                    </template>
+                  </div>
+                </div>
               </div>
             </template>
             <div v-else class="display-court-body display-court-free">
@@ -197,6 +218,7 @@ import VoiceSettingsSheet from 'src/components/VoiceSettingsSheet.vue'
 import { useAnnouncer, useCallAnnouncer } from 'src/composables/useAnnouncer'
 import { usePlayDisplayRealtime } from 'src/composables/usePlayRealtime'
 import { courtStatusLabel, formatSeconds } from 'src/utils/format'
+import { isInWinnersPool, isLockedPair } from 'src/utils/pairs'
 
 const route = useRoute()
 const code = String(route.params.code || '').toUpperCase()
@@ -229,10 +251,6 @@ function matchFor(court) {
   return (state.value?.matches?.active || []).find((m) => m.id === court.active_match_id) || null
 }
 
-function teamNames(team) {
-  return (team || []).map((slot) => slot.display_name).join(' + ')
-}
-
 function nameOf(playerId) {
   return state.value?.players?.find((p) => p.id === playerId)?.display_name || '—'
 }
@@ -259,16 +277,15 @@ const queueTitle = computed(() =>
 )
 
 // A queued player feeds the winners pool when they won their last game,
-// otherwise the challenger pool (new players included).
-const winnersQueue = computed(() =>
-  (state.value?.queue || [])
-    .filter((e) => playerFor(e.player_id)?.last_game_result === 'win')
-    .slice(0, 8),
-)
+// otherwise the challenger pool (new players included). A locked pair goes to
+// winners only if both partners won — same rule as the engine — so a pair is
+// never split across the two columns.
+const playersById = computed(() => new Map((state.value?.players || []).map((p) => [p.id, p])))
+const queuedIds = computed(() => new Set((state.value?.queue || []).map((e) => e.player_id)))
+const inWinners = (e) => isInWinnersPool(playersById.value.get(e.player_id), playersById.value, queuedIds.value)
+const winnersQueue = computed(() => (state.value?.queue || []).filter(inWinners).slice(0, 8))
 const challengersQueue = computed(() =>
-  (state.value?.queue || [])
-    .filter((e) => playerFor(e.player_id)?.last_game_result !== 'win')
-    .slice(0, 8),
+  (state.value?.queue || []).filter((e) => !inWinners(e)).slice(0, 8),
 )
 
 // A staged/called match is the real "on deck" game for ANY format — the engine
@@ -752,6 +769,17 @@ onBeforeUnmount(() => {
 .display-pair-tag .q-icon {
   font-size: 1em;
 }
+.display-pair-tag--podium {
+  max-width: 100%;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.display-team-link {
+  color: #c7f000;
+  font-size: 0.85em;
+  margin: 0 0.3em;
+  vertical-align: -0.1em;
+}
 /* On-deck court: the real "up next" match for any format */
 .display-court--ondeck {
   border-color: #c7f000;
@@ -809,5 +837,17 @@ onBeforeUnmount(() => {
 }
 .display-pool-col .display-queue-pos {
   width: 20px;
+}
+/* Narrow W/L columns: the player's own name keeps priority; the partner pill
+   shrinks (ellipsis) instead of squeezing the name to a letter. */
+.display-pool-col .display-queue-name {
+  flex: 0 0 auto;
+  max-width: 55%;
+}
+.display-pool-col .display-pair-tag {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

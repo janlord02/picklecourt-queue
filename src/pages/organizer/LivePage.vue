@@ -1050,6 +1050,7 @@ import { usePlaySessionStore } from 'src/stores/playSession'
 import { courtStatusLabel, formatSeconds } from 'src/utils/format'
 import { FORMAT_OPTIONS } from 'src/utils/formats'
 import { RATING_OPTIONS } from 'src/utils/ratings'
+import { isInWinnersPool } from 'src/utils/pairs'
 import { recapBlob } from 'src/utils/recapImage'
 
 const $q = useQuasar()
@@ -1090,11 +1091,15 @@ const addForm = reactive({ display_name: '', rating: 3.5, guest_phone: '', check
 const sessionId = Number(route.params.id)
 
 // Winners/losers sessions: show which pool a queued player feeds.
+// Winners/Challenger tag — same rule as the engine, so a locked pair always
+// shows in the same pool (a winner locked to a fresh walk-in = Challenger).
+const playersByIdMap = computed(() => new Map(playStore.players.map((p) => [p.id, p])))
+const queuedIdSet = computed(() => new Set(playStore.queue.map((e) => e.player_id)))
 function poolTagOf(playerId) {
   if (playStore.session?.format !== 'winners_losers') return null
   const player = playerById(playerId)
   if (!player) return null
-  return player.last_game_result === 'win'
+  return isInWinnersPool(player, playersByIdMap.value, queuedIdSet.value)
     ? { label: 'Winners', cls: 'pool-tag--win' }
     : { label: 'Challenger', cls: 'pool-tag--challenger' }
 }
