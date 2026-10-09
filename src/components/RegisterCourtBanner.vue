@@ -13,7 +13,7 @@
       <div class="promo-message">List your court on PickleCourt now.</div>
 
       <a class="promo-btn" :href="DEMO_URL" target="_blank" rel="noopener noreferrer">
-        Request for a Free Demo
+        Request a free demo
       </a>
     </div>
   </transition>
@@ -83,10 +83,10 @@ onMounted(() => {
 
 .promo-close {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 26px;
-  height: 26px;
+  top: 4px;
+  right: 4px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;

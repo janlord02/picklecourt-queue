@@ -1,6 +1,7 @@
 <template>
   <div class="play-card">
     <div v-if="!leaderboard.length" class="empty-state">
+      <span class="empty-state-icon"><q-icon name="eva-award-outline" size="28px" /></span>
       <div class="empty-state-title">No completed games yet</div>
       <div class="text-caption">The standings build as results come in.</div>
     </div>

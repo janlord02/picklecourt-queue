@@ -1,15 +1,22 @@
 <template>
   <q-page>
-    <div class="app-page" style="max-width: 760px">
-      <div v-if="playStore.loading && !playStore.session" class="text-center q-pa-xl">
-        <q-spinner size="32px" color="primary" />
+    <q-pull-to-refresh no-mouse color="primary" :disable="!playStore.session" @refresh="onPull">
+    <div class="app-page app-page--console" style="max-width: 760px">
+      <div v-if="playStore.loading && !playStore.session" aria-busy="true">
+        <div class="row items-center q-mb-md" style="gap: 8px">
+          <q-skeleton type="text" width="40%" />
+          <q-space />
+          <q-skeleton type="QBtn" width="80px" />
+        </div>
+        <q-skeleton type="rect" height="36px" class="q-mb-md" style="border-radius: 10px" />
+        <SkeletonList variant="courts" :rows="2" />
       </div>
 
       <template v-else-if="playStore.session">
         <!-- Header + session controls -->
-        <div class="row items-center no-wrap q-mb-sm">
-          <div class="col">
-            <div class="row items-center text-caption text-grey-7" style="gap: 8px">
+        <div class="console-head q-mb-sm">
+          <div class="console-head-info">
+            <div class="row items-center no-wrap text-caption text-grey-7" style="gap: 8px">
               <span>{{ playStore.session.player_count }} players</span>
               <span>·</span>
               <span
@@ -20,13 +27,17 @@
               </span>
             </div>
           </div>
-          <q-btn flat dense round icon="eva-edit-outline" color="grey-8" @click="openEditSession">
+          <div class="console-head-actions">
+          <q-btn v-if="!readOnly" flat dense round icon="eva-edit-outline" color="grey-8" aria-label="Edit session" @click="openEditSession">
             <q-tooltip>Edit session</q-tooltip>
+          </q-btn>
+          <q-btn flat dense round icon="eva-share-outline" color="grey-8" aria-label="Invite players" @click="shareOpen = true">
+            <q-tooltip>Invite players (QR / link)</q-tooltip>
           </q-btn>
           <q-btn v-if="playStore.canManage" flat dense no-caps icon="eva-person-add-outline" label="Host" color="grey-8" @click="openHostsDialog">
             <q-tooltip>Invite host</q-tooltip>
           </q-btn>
-          <q-btn flat dense round icon="eva-tv-outline" color="grey-8" @click="openDisplay">
+          <q-btn flat dense round icon="eva-tv-outline" color="grey-8" aria-label="Open TV board" @click="openDisplay">
             <q-tooltip>Open TV board</q-tooltip>
           </q-btn>
           <q-btn
@@ -35,27 +46,79 @@
             round
             :icon="voiceSettings.enabled ? 'eva-volume-up-outline' : 'eva-volume-off-outline'"
             :color="voiceSettings.enabled ? 'primary' : 'grey-8'"
+            :aria-label="voiceSettings.enabled ? 'Voice announcements on' : 'Voice announcements off'"
             @click="voiceDialog = true"
           >
             <q-tooltip>Voice announcements</q-tooltip>
           </q-btn>
           <q-btn
-            v-if="playStore.session.status === 'open'"
+            v-if="['draft', 'open'].includes(playStore.session.status)"
+            class="console-status-btn"
             color="primary"
             unelevated
             no-caps
             label="Go live"
+            :loading="statusBusy"
             @click="setStatus('live')"
           />
           <q-btn
             v-else-if="playStore.session.status === 'live'"
+            class="console-status-btn"
             flat
             no-caps
             color="grey-8"
             label="End"
             @click="confirmEnd"
           />
+          <q-btn
+            v-else-if="canReopen"
+            class="console-status-btn"
+            outline
+            no-caps
+            color="primary"
+            label="Reopen"
+            :loading="statusBusy"
+            @click="confirmReopen"
+          />
+          <q-btn
+            v-if="playStore.canManage"
+            flat
+            dense
+            round
+            icon="eva-more-vertical-outline"
+            color="grey-8"
+            aria-label="More session actions"
+          >
+            <q-menu auto-close>
+              <q-list style="min-width: 220px">
+                <q-item clickable @click="downloadCsv('players')">
+                  <q-item-section avatar><q-icon name="eva-download-outline" size="18px" /></q-item-section>
+                  <q-item-section>Export players (CSV)</q-item-section>
+                </q-item>
+                <q-item clickable @click="downloadCsv('matches')">
+                  <q-item-section avatar><q-icon name="eva-download-outline" size="18px" /></q-item-section>
+                  <q-item-section>Export games (CSV)</q-item-section>
+                </q-item>
+                <q-item
+                  v-if="['draft', 'open', 'live'].includes(playStore.session.status)"
+                  clickable
+                  @click="confirmCancelSession"
+                >
+                  <q-item-section avatar><q-icon name="eva-close-circle-outline" color="negative" size="18px" /></q-item-section>
+                  <q-item-section class="text-negative">Cancel session</q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-btn>
+          </div>
         </div>
+
+        <SyncStatusBanner
+          :last-synced-at="playStore.lastSyncedAt"
+          :error="playStore.error"
+          :on-retry="() => playStore.fetchState()"
+        />
+        <ShareSessionDialog v-if="shareLoaded" v-model="shareOpen" :code="playStore.session.join_code" :session-name="playStore.session.name" />
 
         <!-- Ended: share the night's results -->
         <div v-if="playStore.session.status === 'ended'" class="play-card q-mb-md">
@@ -84,6 +147,26 @@
               :loading="sharingRecap"
               @click="shareRecap(false)"
             />
+          </div>
+        </div>
+
+        <!-- Guests who joined from the QR wait here until approved -->
+        <div v-if="pendingGuests.length && !readOnly" class="play-card pending-card q-mb-md">
+          <div class="row items-center q-mb-xs">
+            <q-icon name="eva-person-add-outline" size="18px" class="q-mr-xs" />
+            <div class="text-weight-bold col">
+              {{ pendingGuests.length }} {{ pendingGuests.length === 1 ? 'guest wants' : 'guests want' }} to join
+            </div>
+          </div>
+          <div v-for="g in pendingGuests" :key="g.id" class="list-row">
+            <div class="col">
+              <div class="text-weight-bold">{{ g.display_name }}</div>
+              <div class="text-caption text-grey-7">
+                guest<template v-if="g.rating"> · {{ Number(g.rating).toFixed(1) }}</template><template v-if="g.guest_phone"> · {{ g.guest_phone }}</template>
+              </div>
+            </div>
+            <q-btn flat no-caps color="negative" label="Decline" padding="8px 10px" :disable="approvingId === g.id" @click="decideGuest(g, 'reject')" />
+            <q-btn unelevated no-caps color="primary" label="Approve" padding="8px 14px" :loading="approvingId === g.id" @click="decideGuest(g, 'approve')" />
           </div>
         </div>
 
@@ -116,7 +199,7 @@
             @click="fillOpenCourts"
           />
 
-          <div v-for="court in playStore.courts" :key="court.id" class="court-card q-mb-md">
+          <div v-for="{ court, match, menu } in courtRows" :key="court.id" class="court-card q-mb-md">
             <div class="court-card-head">
               <span class="text-subtitle1 text-weight-bold">{{ court.label }}</span>
               <span class="status-tag">
@@ -124,22 +207,21 @@
                 <span>{{ courtStatusLabel(court.status) }}</span>
               </span>
               <q-space />
-              <span v-if="matchFor(court)?.status === 'playing'" class="court-timer">
-                {{ elapsed(matchFor(court)) }}
-              </span>
+              <!-- Own 1s interval: only this text re-renders each second. -->
+              <CourtTimer v-if="match?.status === 'playing'" :started-at="match.started_at" />
               <q-btn
-                v-if="courtMenuOptions(court).length"
+                v-if="menu.length"
                 flat
-                dense
                 round
-                size="sm"
+                class="tap-44"
                 icon="eva-more-vertical-outline"
                 color="grey-7"
+                :aria-label="`${court.label} options`"
               >
                 <q-menu auto-close>
-                  <q-list dense style="min-width: 200px">
+                  <q-list style="min-width: 220px">
                     <q-item
-                      v-for="option in courtMenuOptions(court)"
+                      v-for="option in menu"
                       :key="option.key"
                       clickable
                       @click="option.handler()"
@@ -154,74 +236,74 @@
             </div>
 
             <!-- Active match on this court -->
-            <template v-if="matchFor(court)">
+            <template v-if="match">
               <div class="court-card-body">
                 <MatchTeams
-                  :match="matchFor(court)"
-                  :show-ready="matchFor(court).status === 'called'"
+                  :match="match"
+                  :show-ready="match.status === 'called'"
                 />
-                <WhyThisMatch :match="matchFor(court)" class="q-mt-sm" />
+                <WhyThisMatch :match="match" class="q-mt-sm" />
               </div>
-              <div class="court-card-actions">
+              <div class="court-card-actions" :class="{ 'is-busy': busyMatchIds.has(match.id) }">
                 <q-btn
-                  v-if="matchFor(court).status === 'staged'"
+                  v-if="match.status === 'staged'"
                   class="col"
                   color="primary"
                   unelevated
                   no-caps
                   label="Call players"
-                  @click="doMatch(callMatch, matchFor(court))"
+                  @click="callPlayers(match)"
                 />
                 <q-btn
-                  v-if="matchFor(court).status === 'staged'"
+                  v-if="match.status === 'staged'"
                   class="col"
                   outline
                   no-caps
                   color="primary"
                   label="Start"
-                  @click="doMatch(startMatch, matchFor(court))"
+                  @click="doMatch(startMatch, match)"
                 />
                 <q-btn
-                  v-if="matchFor(court).status === 'called'"
+                  v-if="match.status === 'called'"
                   class="col"
                   color="primary"
                   unelevated
                   no-caps
                   label="Start match"
-                  @click="doMatch(startMatch, matchFor(court))"
+                  @click="doMatch(startMatch, match)"
                 />
                 <!-- Phone: round bell only. Tablet/desktop: room for a label. -->
                 <q-btn
-                  v-if="matchFor(court).status === 'called'"
+                  v-if="match.status === 'called'"
                   outline
                   no-caps
                   color="primary"
                   icon="eva-bell-outline"
                   :round="!$q.screen.gt.xs"
-                  :size="$q.screen.gt.xs ? undefined : '12px'"
                   :label="$q.screen.gt.xs ? 'Call again' : undefined"
-                  :class="$q.screen.gt.xs ? 'col' : undefined"
-                  @click="doMatch(callMatch, matchFor(court))"
+                  :class="$q.screen.gt.xs ? 'col' : 'tap-44'"
+                  aria-label="Call players again"
+                  @click="callPlayers(match)"
                 >
                   <q-tooltip v-if="!$q.screen.gt.xs">Call again</q-tooltip>
                 </q-btn>
                 <q-btn
-                  v-if="matchFor(court).status === 'playing'"
+                  v-if="match.status === 'playing'"
                   class="col"
                   color="primary"
                   unelevated
                   no-caps
                   label="End match"
-                  @click="openScoreDialog(matchFor(court))"
+                  @click="openScoreDialog(match)"
                 />
                 <q-btn
-                  v-if="matchFor(court).status !== 'playing'"
+                  v-if="match.status !== 'playing'"
                   flat
-                  dense
                   no-caps
                   color="negative"
                   label="Cancel"
-                  @click="doMatch(cancelMatch, matchFor(court))"
+                  padding="8px 10px"
+                  @click="confirmCancelStaged(match)"
                 />
               </div>
             </template>
@@ -315,34 +397,37 @@
         <!-- ======================= QUEUE ======================= -->
         <div v-if="tab === 'queue'">
           <div v-if="!playStore.queue.length" class="play-card empty-state">
+            <span class="empty-state-icon"><q-icon name="eva-people-outline" size="28px" /></span>
             <div class="empty-state-title">Nobody is waiting</div>
-            <div class="text-caption">Players appear here when they check in.</div>
+            <div class="text-caption q-mb-md">Players appear here when they check in. Share the code or QR to get them in.</div>
+            <q-btn color="primary" outline no-caps icon="eva-share-outline" label="Invite players" @click="shareOpen = true" />
           </div>
           <div v-else class="play-card">
-            <div v-for="entry in playStore.queue" :key="entry.player_id" class="list-row">
+            <div v-for="{ entry, player, partner, pool } in queueRows" :key="entry.player_id" class="list-row">
               <div class="queue-pos">{{ entry.position }}</div>
               <div class="col cursor-pointer" @click="openPlayerDetail(entry.player_id)">
                 <div class="text-weight-bold">
-                  {{ playerById(entry.player_id)?.display_name }}
+                  {{ player?.display_name }}
+                  <span v-if="player?.paid === false" class="unpaid-tag q-ml-xs">Unpaid</span>
                 </div>
                 <div class="text-caption text-grey-7">
-                  {{ playerById(entry.player_id)?.games_played }} games
-                  <template v-if="playerById(entry.player_id)?.rating">
-                    · {{ playerById(entry.player_id).rating.toFixed(1) }}
+                  {{ player?.games_played }} games
+                  <template v-if="player?.rating">
+                    · {{ player.rating.toFixed(1) }}
                   </template>
-                  <span v-if="partnerNameOf(playerById(entry.player_id))" class="pair-tag q-ml-xs">
+                  <span v-if="partner" class="pair-tag q-ml-xs">
                     <q-icon name="eva-link-outline" />
-                    {{ partnerNameOf(playerById(entry.player_id)) }}
+                    {{ partner }}
                   </span>
-                  <span v-if="poolTagOf(entry.player_id)" class="pool-tag q-ml-xs" :class="poolTagOf(entry.player_id).cls">
-                    {{ poolTagOf(entry.player_id).label }}
+                  <span v-if="pool" class="pool-tag q-ml-xs" :class="pool.cls">
+                    {{ pool.label }}
                   </span>
                 </div>
               </div>
               <div class="text-caption text-grey-7 tnum">
                 {{ formatSeconds(entry.effective_wait_seconds) }}
               </div>
-              <PlayerActionMenu v-if="!readOnly" :player="playerById(entry.player_id)" @action="onPlayerAction" />
+              <PlayerActionMenu v-if="!readOnly" :player="player" @action="onPlayerAction" />
             </div>
           </div>
 
@@ -411,6 +496,7 @@
                 <div class="text-weight-bold">
                   {{ player.display_name }}
                   <span v-if="player.is_guest" class="text-caption text-grey-6">guest</span>
+                  <span v-if="player.paid === false" class="unpaid-tag q-ml-xs">Unpaid</span>
                 </div>
                 <div class="text-caption text-grey-7 tnum">
                   {{ player.wins }}–{{ player.losses }} ·
@@ -437,8 +523,9 @@
           <span class="section-label">Game log</span>
           <div class="play-card">
             <div v-if="!playStore.recentMatches.length" class="empty-state">
+              <span class="empty-state-icon"><q-icon name="eva-award-outline" size="28px" /></span>
               <div class="empty-state-title">No games yet</div>
-              <div class="text-caption">Completed games will show here.</div>
+              <div class="text-caption">Finished games and scores show up here.</div>
             </div>
             <div v-for="match in playStore.recentMatches" :key="match.id" class="list-row">
               <div class="col">
@@ -460,11 +547,11 @@
               </div>
               <q-btn
                 flat
-                dense
                 round
-                size="sm"
+                class="tap-44"
                 color="grey-7"
                 icon="eva-edit-outline"
+                aria-label="Edit result"
                 @click="openScoreDialog(match, true)"
               >
                 <q-tooltip>Edit result</q-tooltip>
@@ -474,12 +561,13 @@
         </div>
       </template>
     </div>
+    </q-pull-to-refresh>
 
     <!-- Score dialog -->
     <q-dialog v-model="scoreDialog" position="bottom">
       <q-card class="sheet">
         <q-card-section v-if="scoringMatch" class="q-pa-md">
-          <div class="text-subtitle1 text-weight-bold q-mb-md">
+          <div class="sheet-title q-mb-md">
             {{ amending ? 'Edit result' : 'Match result' }}
           </div>
           <div class="row q-col-gutter-md items-end">
@@ -525,9 +613,9 @@
 
     <!-- Add player dialog -->
     <q-dialog v-model="addDialog" position="bottom">
-      <q-card class="sheet">
+      <q-card class="sheet sheet--tall">
         <q-card-section class="q-pa-md">
-          <div class="text-subtitle1 text-weight-bold q-mb-md">Add player</div>
+          <div class="sheet-title q-mb-md">Add player</div>
           <q-form class="form-stack" @submit.prevent="addWalkIn">
             <q-input
               v-model="addForm.display_name"
@@ -574,7 +662,7 @@
     <q-dialog v-model="teamsDialog" position="bottom">
       <q-card class="sheet">
         <q-card-section class="q-pa-md">
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">Edit teams</div>
+          <div class="sheet-title q-mb-xs">Edit teams</div>
           <div class="text-caption text-grey-7 q-mb-md">
             Same four players — choose the arrangement.
           </div>
@@ -607,9 +695,9 @@
 
     <!-- Replace a player -->
     <q-dialog v-model="replaceDialog" position="bottom">
-      <q-card class="sheet">
+      <q-card class="sheet sheet--tall">
         <q-card-section class="q-pa-md">
-          <div class="text-subtitle1 text-weight-bold q-mb-md">Replace a player</div>
+          <div class="sheet-title q-mb-md">Replace a player</div>
 
           <div class="micro-label q-mb-xs">Who's coming out?</div>
           <div class="row q-col-gutter-sm q-mb-md">
@@ -664,9 +752,9 @@
 
     <!-- Choose players: hand-pick a match instead of auto-suggest -->
     <q-dialog v-model="chooseDialog" position="bottom">
-      <q-card class="sheet">
+      <q-card class="sheet sheet--tall">
         <q-card-section class="q-pa-md">
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">
+          <div class="sheet-title q-mb-xs">
             Choose players<template v-if="chooseCourt"> — {{ chooseCourt.label }}</template>
           </div>
           <div class="text-caption text-grey-7 q-mb-md">
@@ -774,7 +862,7 @@
     <!-- Fairness override confirmation -->
     <q-dialog v-model="fairnessDialog" persistent>
       <q-card class="dialog-card q-pa-md">
-        <div class="text-subtitle1 text-weight-bold q-mb-sm">Please review before continuing</div>
+        <div class="sheet-title q-mb-sm">Please review before continuing</div>
         <ul class="fairness-list">
           <li v-for="(warning, i) in fairnessWarnings" :key="i">{{ warning }}</li>
         </ul>
@@ -796,9 +884,9 @@
 
     <!-- Edit session -->
     <q-dialog v-model="editDialog" position="bottom">
-      <q-card class="sheet">
+      <q-card class="sheet sheet--tall">
         <q-card-section class="q-pa-md">
-          <div class="text-subtitle1 text-weight-bold q-mb-md">Edit session</div>
+          <div class="sheet-title q-mb-md">Edit session</div>
           <q-form class="form-stack" @submit.prevent="saveSession">
             <q-input
               v-model="editForm.name"
@@ -849,6 +937,11 @@
               type="number"
               label="Max players (optional)"
             />
+            <q-toggle
+              v-model="editForm.guest_self_join"
+              label="Let guests join from the QR (you approve each one)"
+              class="q-mb-sm"
+            />
             <q-btn
               class="big-action full-width"
               color="primary"
@@ -866,7 +959,7 @@
     <q-dialog v-model="addCourtDialog" position="bottom">
       <q-card class="sheet">
         <q-card-section class="q-pa-md">
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">Add court</div>
+          <div class="sheet-title q-mb-xs">Add court</div>
           <div class="text-caption text-grey-7 q-mb-md">
             Another court freed up? It can host matches right away.
           </div>
@@ -898,7 +991,7 @@
     <q-dialog v-model="hostsDialog" position="bottom">
       <q-card class="sheet">
         <q-card-section class="q-pa-md">
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">Hosts</div>
+          <div class="sheet-title q-mb-xs">Hosts</div>
           <div class="text-caption text-grey-7 q-mb-md">
             Invite someone by email to co-host this session. They'll accept in their
             profile and can then run the queue. Access applies only to this session.
@@ -951,7 +1044,7 @@
     <q-dialog v-model="renameDialog" position="bottom">
       <q-card class="sheet">
         <q-card-section class="q-pa-md">
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">Rename court</div>
+          <div class="sheet-title q-mb-xs">Rename court</div>
           <div class="text-caption text-grey-7 q-mb-md">
             Boards and voice announcements use the new name right away.
           </div>
@@ -982,7 +1075,7 @@
     <q-dialog v-model="lockDialog" position="bottom">
       <q-card class="sheet">
         <q-card-section class="q-pa-md">
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">
+          <div class="sheet-title q-mb-xs">
             Lock a partner for {{ lockPlayer?.display_name }}
           </div>
           <div class="text-caption text-grey-7 q-mb-md">
@@ -1012,7 +1105,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -1027,6 +1120,7 @@ import {
   setLockedPartner,
   updatePlayerName,
   updatePlayerRating,
+  exportSessionCsv,
   stageMatch,
   startMatch,
   suggestMatches,
@@ -1038,6 +1132,8 @@ import {
   removeSessionHost,
 } from 'src/api/openPlay'
 import MatchTeams from 'src/components/MatchTeams.vue'
+import { validateSessionForm } from 'src/utils/sessionForm'
+import SyncStatusBanner from 'src/components/SyncStatusBanner.vue'
 import PlayerActionMenu from 'src/components/PlayerActionMenu.vue'
 import PlayerDetailSheet from 'src/components/PlayerDetailSheet.vue'
 import SessionLeaderboard from 'src/components/SessionLeaderboard.vue'
@@ -1051,7 +1147,9 @@ import { courtStatusLabel, formatSeconds } from 'src/utils/format'
 import { FORMAT_OPTIONS } from 'src/utils/formats'
 import { RATING_OPTIONS } from 'src/utils/ratings'
 import { isInWinnersPool } from 'src/utils/pairs'
-import { recapBlob } from 'src/utils/recapImage'
+import { haptic } from 'src/utils/native'
+import CourtTimer from 'src/components/CourtTimer.vue'
+import SkeletonList from 'src/components/SkeletonList.vue'
 
 const $q = useQuasar()
 const route = useRoute()
@@ -1059,6 +1157,35 @@ const router = useRouter()
 const playStore = usePlaySessionStore()
 
 const tab = ref('courts')
+const shareOpen = ref(false)
+// The invite sheet pulls in the QR encoder — fetch it the first time it's
+// opened, not with the console.
+const ShareSessionDialog = defineAsyncComponent(() => import('src/components/ShareSessionDialog.vue'))
+const shareLoaded = ref(false)
+watch(shareOpen, (open) => {
+  if (open) shareLoaded.value = true
+})
+
+// ——— Guest self-join approvals ———
+const pendingGuests = computed(() => playStore.players.filter((p) => p.status === 'pending_approval'))
+const approvingId = ref(null)
+async function decideGuest(guest, action) {
+  if (approvingId.value) return
+  approvingId.value = guest.id
+  try {
+    await playerAction(sessionId, guest.id, action)
+    haptic(action === 'approve' ? 'success' : 'light')
+    await refresh()
+    $q.notify({
+      message: action === 'approve' ? `${guest.display_name} is checked in and in the queue` : `${guest.display_name} declined`,
+      color: action === 'approve' ? 'positive' : 'grey-8',
+    })
+  } catch (e) {
+    notifyError(e, 'Could not update the guest')
+  } finally {
+    approvingId.value = null
+  }
+}
 
 // Players tab: name search + "not checked in" (registered) filter.
 const playerSearch = ref('')
@@ -1197,13 +1324,27 @@ const fairnessDialog = ref(false)
 const fairnessWarnings = ref([])
 let fairnessProceed = null
 
+// One sheet submit at a time — a second tap on a row while the first
+// request is in flight would otherwise send it twice.
+const sheetBusy = ref(false)
+async function guarded(fn) {
+  if (sheetBusy.value) return
+  sheetBusy.value = true
+  try {
+    await fn()
+  } finally {
+    sheetBusy.value = false
+  }
+}
+
 function withFairnessCheck(warnings, action) {
+  if (sheetBusy.value) return
   if (!warnings.length) {
-    action(null)
+    guarded(() => action(null))
     return
   }
   fairnessWarnings.value = warnings
-  fairnessProceed = () => action({ reasons: warnings })
+  fairnessProceed = () => guarded(() => action({ reasons: warnings }))
   fairnessDialog.value = true
 }
 
@@ -1239,6 +1380,7 @@ const editForm = reactive({
   end_time: '',
   format: 'smart',
   max_players: null,
+  guest_self_join: true,
 })
 
 // ——— Hosts / co-organizer invitations ———
@@ -1311,10 +1453,16 @@ function openEditSession() {
   editForm.end_time = session.end_time ? session.end_time.slice(0, 5) : ''
   editForm.format = session.format
   editForm.max_players = session.max_players || null
+  editForm.guest_self_join = session.settings?.guest_self_join !== false
   editDialog.value = true
 }
 
 function saveSession() {
+  const invalid = validateSessionForm(editForm, { playerCount: playStore.session?.player_count || 0 })
+  if (invalid) {
+    $q.notify({ message: invalid, color: 'negative' })
+    return
+  }
   // Format switches change who plays next — confirm before rebuilding.
   if (playStore.session && editForm.format !== playStore.session.format) {
     const newLabel = formatOptions.find((o) => o.value === editForm.format)?.label || editForm.format
@@ -1340,6 +1488,8 @@ async function doSaveSession() {
       end_time: editForm.end_time || null,
       format: editForm.format,
       max_players: editForm.max_players || null,
+      // config is merged server-side — send only what this form owns.
+      config: { guest_self_join: !!editForm.guest_self_join },
     })
     editDialog.value = false
     await refresh()
@@ -1357,6 +1507,8 @@ const sharingRecap = ref(false)
 async function shareRecap(preferShare) {
   sharingRecap.value = true
   try {
+    // Canvas renderer is only needed at the end of a night — load on demand.
+    const { recapBlob } = await import('src/utils/recapImage')
     const blob = await recapBlob(playStore.state)
     const name = `${(playStore.session?.name || 'open-play').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-results.png`
     const file = new File([blob], name, { type: 'image/png' })
@@ -1421,13 +1573,16 @@ function openRenameDialog(court) {
 
 async function applyRename() {
   const label = renameLabel.value.trim()
-  if (!label) return
+  if (!label || sheetBusy.value) return
+  sheetBusy.value = true
   try {
     await updateCourt(sessionId, renameCourt.value.id, { label })
     renameDialog.value = false
     await refresh()
   } catch (e) {
     notifyError(e, 'Could not rename the court')
+  } finally {
+    sheetBusy.value = false
   }
 }
 
@@ -1723,12 +1878,16 @@ function partnerNameOf(player) {
 }
 
 async function applyLock(partner) {
+  if (sheetBusy.value) return
+  sheetBusy.value = true
   try {
     await setLockedPartner(sessionId, lockPlayer.value.id, partner ? partner.id : null)
     lockDialog.value = false
     await refresh()
   } catch (e) {
     notifyError(e, 'Could not update the partner lock')
+  } finally {
+    sheetBusy.value = false
   }
 }
 
@@ -1756,32 +1915,39 @@ function courtDot(status) {
   return map[status] || 'dot-checked_out'
 }
 
+// O(1) lookups — the template and helpers hit these many times per render.
 function playerById(id) {
-  return playStore.players.find((p) => p.id === id) || null
+  return playersByIdMap.value.get(id) || null
 }
 
+const activeMatchesById = computed(() => new Map(playStore.activeMatches.map((m) => [m.id, m])))
 function matchFor(court) {
   if (!court.active_match_id) return null
-  return playStore.activeMatches.find((m) => m.id === court.active_match_id) || null
+  return activeMatchesById.value.get(court.active_match_id) || null
 }
+
+// One pass per state change: each court with its match and overflow menu,
+// instead of ~10 matchFor() calls per court on every render.
+const courtRows = computed(() =>
+  playStore.courts.map((court) => ({ court, match: matchFor(court), menu: courtMenuOptions(court) })),
+)
+
+// Queue rows with the player, partner name and pool tag resolved once.
+const queueRows = computed(() =>
+  playStore.queue.map((entry) => {
+    const player = playerById(entry.player_id)
+    return { entry, player, partner: partnerNameOf(player), pool: poolTagOf(entry.player_id) }
+  }),
+)
 
 function teamNames(team) {
   return (team || []).map((slot) => slot.display_name).join(' + ')
 }
 
-// Live court timer
-const nowTick = ref(Date.now())
-const tickInterval = setInterval(() => (nowTick.value = Date.now()), 1000)
-onBeforeUnmount(() => clearInterval(tickInterval))
-
-function elapsed(match) {
-  if (!match?.started_at) return ''
-  const seconds = Math.max(0, Math.floor((nowTick.value - new Date(match.started_at)) / 1000))
-  const minutes = Math.floor(seconds / 60)
-  return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
-}
+// Court timers tick inside <CourtTimer> — no page-wide 1s re-render.
 
 function notifyError(e, fallback) {
+  haptic('error')
   $q.notify({ message: e.response?.data?.message || fallback, color: 'negative' })
 }
 
@@ -1789,13 +1955,68 @@ async function refresh() {
   await playStore.fetchState().catch(() => {})
 }
 
-async function setStatus(status) {
+async function onPull(done) {
   try {
-    await updateSession(sessionId, { status })
+    await refresh()
+  } finally {
+    done()
+  }
+}
+
+const statusBusy = ref(false)
+async function setStatus(status, extra = {}) {
+  if (statusBusy.value) return
+  statusBusy.value = true
+  try {
+    await updateSession(sessionId, { status, ...extra })
     await refresh()
   } catch (e) {
     notifyError(e, 'Could not update session')
+  } finally {
+    statusBusy.value = false
   }
+}
+
+// Undo an accidental End — the server allows it within 24h of ending.
+const canReopen = computed(() => {
+  const s = playStore.session
+  if (s?.status !== 'ended' || !playStore.canManage) return false
+  return !s.ended_at || Date.now() - new Date(s.ended_at).getTime() < 24 * 3600 * 1000
+})
+function confirmReopen() {
+  $q.dialog({
+    title: 'Reopen this session?',
+    message: 'It goes back to live with everyone’s games and queue kept.',
+    cancel: { label: 'Not now', flat: true, noCaps: true },
+    ok: { label: 'Reopen', color: 'primary', unelevated: true, noCaps: true },
+  }).onOk(() => setStatus('live', { reopen: true }))
+}
+
+async function downloadCsv(type) {
+  try {
+    const res = await exportSessionCsv(sessionId, type)
+    // Server sets the filename; fall back to a sensible one.
+    const disposition = res.headers?.['content-disposition'] || ''
+    const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i)
+    const name = match ? decodeURIComponent(match[1]) : `${playStore.session.name}-${type}.csv`
+    const url = URL.createObjectURL(res.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
+  } catch (e) {
+    notifyError(e, 'Could not export')
+  }
+}
+
+function confirmCancelSession() {
+  $q.dialog({
+    title: 'Cancel this session?',
+    message: 'Players see it as cancelled and can’t check in. Games waiting to start are released. This can’t be undone.',
+    cancel: { label: 'Keep session', flat: true, noCaps: true },
+    ok: { label: 'Cancel session', color: 'negative', unelevated: true, noCaps: true },
+  }).onOk(() => setStatus('cancelled'))
 }
 
 function confirmEnd() {
@@ -1874,13 +2095,72 @@ async function stageFromProposal(proposal) {
   await refresh()
 }
 
+// One action per court at a time: a double tap on Call/Start/Cancel would
+// fire twice (duplicate calls + announcements, or an error toast after the
+// first tap already worked). The court's buttons go inactive meanwhile.
+const busyMatchIds = ref(new Set())
 async function doMatch(fn, match) {
+  if (!match || busyMatchIds.value.has(match.id)) return false
+  busyMatchIds.value = new Set(busyMatchIds.value).add(match.id)
   try {
     await fn(match.id)
     await refresh()
+    return true
   } catch (e) {
     notifyError(e, 'Match action failed')
+    return false
+  } finally {
+    const next = new Set(busyMatchIds.value)
+    next.delete(match.id)
+    busyMatchIds.value = next
   }
+}
+
+async function callPlayers(match) {
+  if (await doMatch(callMatch, match)) haptic('medium')
+}
+
+// Short "Undo" toast after a removal (check-out, no-show, cancelled match).
+function offerUndo(message, undo) {
+  $q.notify({
+    message,
+    color: 'grey-9',
+    timeout: 6000,
+    actions: [
+      {
+        label: 'Undo',
+        color: 'lime-4',
+        noCaps: true,
+        handler: async () => {
+          try {
+            await undo()
+          } catch (e) {
+            notifyError(e, 'Could not undo — the queue has moved on')
+          }
+        },
+      },
+    ],
+  })
+}
+
+function confirmCancelStaged(match) {
+  const names = [...(match.team_a || []), ...(match.team_b || [])].map((s) => s.display_name).join(', ')
+  $q.dialog({
+    title: 'Cancel this match?',
+    message: `${names} go back to the queue with their place kept.`,
+    cancel: { label: 'Keep it', flat: true, noCaps: true },
+    ok: { label: 'Cancel match', color: 'negative', unelevated: true, noCaps: true },
+  }).onOk(async () => {
+    const teamA = (match.team_a || []).map((s) => s.player_id)
+    const teamB = (match.team_b || []).map((s) => s.player_id)
+    const courtId = match.court_id
+    await doMatch(cancelMatch, match)
+    if (playStore.activeMatches.some((m) => m.id === match.id)) return // cancel failed
+    offerUndo('Match cancelled', async () => {
+      await stageMatch(sessionId, { team_a: teamA, team_b: teamB, court_id: courtId, created_by: 'manual' })
+      await refresh()
+    })
+  })
 }
 
 function openScoreDialog(match, isAmend = false) {
@@ -1906,6 +2186,7 @@ async function saveScore() {
     } else {
       await scoreMatch(scoringMatch.value.id, a, b)
     }
+    haptic('success')
     scoreDialog.value = false
     await refresh()
   } catch (e) {
@@ -1982,12 +2263,40 @@ async function onPlayerAction({ player, action, extra }) {
     return
   }
 
-  try {
-    await playerAction(sessionId, player.id, action, extra || {})
-    await refresh()
-  } catch (e) {
-    notifyError(e, 'Player action failed')
+  const run = async () => {
+    try {
+      await playerAction(sessionId, player.id, action, extra || {})
+      await refresh()
+      // Mis-tap insurance: put them straight back.
+      if (['check_out', 'no_show', 'injured'].includes(action)) {
+        offerUndo(`${player.display_name} removed from the queue`, async () => {
+          await playerAction(sessionId, player.id, 'reinstate')
+          await refresh()
+        })
+      }
+    } catch (e) {
+      notifyError(e, 'Player action failed')
+    }
   }
+
+  // Taking someone out of the queue is one tap in a dense menu — confirm it.
+  const REMOVALS = {
+    check_out: ['Check out', 'leaves the session and the queue'],
+    no_show: ['Mark no-show', 'is taken out of the queue as a no-show'],
+    injured: ['Mark injured', 'is taken out of the queue (injured)'],
+    reject: ['Decline', "won't be added to the session"],
+  }
+  if (REMOVALS[action]) {
+    const [label, effect] = REMOVALS[action]
+    $q.dialog({
+      title: `${label}?`,
+      message: `${player.display_name} ${effect}. You can bring them back later from Players.`,
+      cancel: { label: 'Keep', flat: true, noCaps: true },
+      ok: { label, color: 'negative', unelevated: true, noCaps: true },
+    }).onOk(run)
+    return
+  }
+  await run()
 }
 
 async function addWalkIn() {
@@ -2027,11 +2336,21 @@ const { sync: syncAnnouncer } = useCallAnnouncer(
 )
 watch(() => playStore.activeMatches, syncAnnouncer)
 
+watch(
+  () => playStore.accessLost,
+  (lost) => {
+    if (lost) bailOut('This session is no longer available to you (removed as host, or deleted).')
+  },
+)
+
 // The console borrows the shared session pointer — remember the player's
 // own active session so opening (or being denied) a console never nukes it.
 const prevSessionId = playStore.sessionId
 
+let bailedOut = false
 function bailOut(message) {
+  if (bailedOut) return
+  bailedOut = true
   playStore.setActive(prevSessionId !== sessionId ? prevSessionId : null)
   $q.notify({ message, color: 'negative' })
   router.replace({ name: 'organizer-sessions' })
@@ -2066,6 +2385,63 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* Session info + actions. Phones: info on its own line, actions below
+   (they used to squeeze the code/live tag into a stacked column). */
+.console-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.console-head-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.console-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+@media (max-width: 599px) {
+  .console-head-info {
+    flex-basis: 100%;
+  }
+
+  .console-head-actions {
+    margin-left: -8px;
+    width: calc(100% + 8px);
+  }
+
+  .console-status-btn {
+    margin-left: auto;
+  }
+}
+
+.pending-card {
+  border: 1.5px solid #c6ef09;
+  background: #fbfee8;
+}
+
+.unpaid-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #fff1e6;
+  color: #b4530b;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+
+.court-card-actions.is-busy {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .split-option {
   display: flex;
   align-items: center;

@@ -1,8 +1,8 @@
 {
   "name": "picklecourt-play",
   "version": "0.1.0",
-  "description": "PickleCourt Play — open play queuing, smart matchmaking and live courts",
-  "productName": "PickleCourt Play",
+  "description": "PickleCourt Queue — open play queuing, smart matchmaking and live courts",
+  "productName": "PickleCourt Queue",
   "author": "Janlord Luga <janlord.luga1991@gmail.com>",
   "type": "module",
   "private": true,
@@ -15,6 +15,12 @@
     "postinstall": "quasar prepare"
   },
   "dependencies": {
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/core": "^7.6.9",
+    "@capacitor/haptics": "^7.0.5",
+    "@capacitor/keyboard": "^7.0.6",
+    "@capacitor/splash-screen": "^7.0.5",
+    "@capacitor/status-bar": "^7.0.6",
     "@quasar/extras": "^1.16.4",
     "axios": "^1.2.1",
     "html5-qrcode": "^2.3.8",

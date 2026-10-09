@@ -35,6 +35,13 @@ const routes = [
     children: [{ path: '', name: 'join', component: () => import('pages/player/JoinPage.vue') }],
   },
 
+  // Guest (no account) spot in a session — token kept on this phone.
+  {
+    path: '/guest/:code',
+    component: () => import('layouts/PlayerLayout.vue'),
+    children: [{ path: '', name: 'guest-play', component: () => import('pages/player/GuestPlayPage.vue') }],
+  },
+
   // Organizer console
   {
     path: '/organizer',
@@ -67,6 +74,15 @@ const routes = [
     meta: { guest: true },
     children: [
       { path: '', name: 'register', component: () => import('pages/auth/RegisterPage.vue') },
+    ],
+  },
+
+  {
+    // Emailed password-reset link lands here (?token=…&email=…).
+    path: '/reset-password',
+    component: () => import('layouts/AuthLayout.vue'),
+    children: [
+      { path: '', name: 'reset-password', component: () => import('pages/auth/ResetPasswordPage.vue') },
     ],
   },
 

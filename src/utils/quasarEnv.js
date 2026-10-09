@@ -40,7 +40,7 @@ function devApiProxyDisabled() {
 /**
  * On iOS/Android, `localhost` in VITE_API_URL points at the device, not your dev machine.
  *
- * In dev, Capacitor live reload uses http://YOUR_LAN:9500. Calling Laravel on :8000 from the
+ * In dev, Capacitor live reload uses http://YOUR_LAN:9500. Calling Laravel on :8003 from the
  * WebView is cross-origin and often surfaces as axios "Network Error". Quasar devServer proxies
  * `/api` → Laravel; using `${origin}/api` keeps requests same-origin. Production builds still use
  * VITE_API_URL_MOBILE / VITE_API_URL. Set VITE_CAPACITOR_DISABLE_DEV_PROXY=1 to force direct LAN API in dev.

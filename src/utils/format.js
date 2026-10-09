@@ -15,6 +15,7 @@ export function formatWaitRange(minSeconds, maxSeconds) {
 
 export function statusLabel(status) {
   const labels = {
+    pending_approval: 'Needs approval',
     registered: 'Registered',
     waiting: 'Waiting',
     up_next: 'Up Next',

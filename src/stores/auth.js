@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api } from 'src/boot/axios'
+import { disconnectEcho } from 'src/utils/echoClient'
 
 // Shared with the booking frontend: same backend, same token key, so a login
 // on one app carries over when both run on the same origin.
@@ -77,6 +78,11 @@ export const useAuthStore = defineStore('auth', () => {
    */
   async function redeemHandoff(code) {
     const { data } = await api.post('/play/handoff/redeem', { code })
+    // Switching accounts via a handoff link: forget the previous user's
+    // active session/business so we don't open their console.
+    if (user.value && data.data?.user && user.value.id !== data.data.user.id) {
+      forgetDeviceState()
+    }
     token.value = data.data.token
     user.value = data.data.user
     businesses.value = data.data.businesses || []
@@ -105,6 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
     } catch {
       // Token may already be invalid — clear locally regardless.
     }
+    forgetDeviceState()
     clearSession()
   }
 
@@ -114,6 +121,22 @@ export const useAuthStore = defineStore('auth', () => {
     businesses.value = []
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(BUSINESSES_KEY)
+  }
+
+  // On logout / account switch: drop per-user device state (last session,
+  // active business) and the realtime socket bound to the old token.
+  function forgetDeviceState() {
+    localStorage.removeItem('play_active_session')
+    localStorage.removeItem('active_business_id')
+    disconnectEcho()
+  }
+
+  // axios 401 interceptor: the token is gone — mirror it in memory.
+  if (typeof window !== 'undefined') {
+    window.addEventListener('play:auth-expired', () => {
+      token.value = null
+      user.value = null
+    })
   }
 
   return {

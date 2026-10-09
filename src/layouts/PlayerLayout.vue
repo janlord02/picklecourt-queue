@@ -1,9 +1,9 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-header class="player-header text-white">
+    <q-header class="player-header safe-top text-white">
       <q-toolbar>
-        <router-link :to="{ name: 'home' }" class="row items-center no-wrap" style="gap: 8px">
-          <img :src="logoUrl" alt="PickleCourt" class="header-logo" />
+        <router-link :to="{ name: 'home' }" class="row items-center no-wrap" style="gap: 8px; text-decoration: none" aria-label="PickleCourt Queue home">
+          <img :src="logoUrl" alt="PickleCourt" class="header-logo" height="26" />
           <span class="brand-badge">QUEUE</span>
         </router-link>
 
@@ -25,6 +25,8 @@
         <button
           v-if="playStore.sessionId && playStore.session"
           class="header-session"
+          type="button"
+          :aria-label="`Open live session ${playStore.session.name}`"
           @click="$router.push({ name: 'play' })"
         >
           <i class="header-session-dot" />
@@ -34,21 +36,28 @@
     </q-header>
 
     <q-page-container>
-      <router-view />
+      <router-view v-slot="{ Component, route: viewRoute }">
+        <transition name="page" mode="out-in">
+          <component :is="Component" :key="viewRoute.path" />
+        </transition>
+      </router-view>
     </q-page-container>
 
-    <!-- Lead-gen: player surfaces only (never the organizer console/TV) -->
-    <RegisterCourtBanner />
+    <!-- Lead-gen: player surfaces only (never the organizer console/TV).
+         Not over the signed-out welcome screen — its CTAs come first. -->
+    <RegisterCourtBanner v-if="!($route.name === 'home' && !auth.isAuthenticated)" />
 
-    <nav class="bottom-nav">
+    <nav class="bottom-nav" aria-label="Main">
       <router-link
         v-for="tab in tabs"
         :key="tab.name"
         :to="{ name: tab.name }"
         class="bottom-nav-tab"
         :class="{ active: $route.name === tab.name }"
+        :aria-current="$route.name === tab.name ? 'page' : undefined"
+        @click="onTab(tab)"
       >
-        <q-icon :name="tab.icon" />
+        <span class="bottom-nav-icon"><q-icon :name="$route.name === tab.name ? tab.activeIcon : tab.icon" /></span>
         <span>{{ tab.label }}</span>
       </router-link>
     </nav>
@@ -58,16 +67,30 @@
 <script setup>
 import logoUrl from 'src/assets/logo.png'
 import RegisterCourtBanner from 'src/components/RegisterCourtBanner.vue'
+import { useRoute } from 'vue-router'
+import { useAuthStore } from 'src/stores/auth'
 import { usePlaySessionStore } from 'src/stores/playSession'
+import { haptic } from 'src/utils/native'
 
+const route = useRoute()
+const auth = useAuthStore()
 const playStore = usePlaySessionStore()
 
+// Filled icon marks the active tab (outline otherwise), like native tab bars.
 const tabs = [
-  { name: 'home', label: 'Home', icon: 'eva-home-outline' },
-  { name: 'play', label: 'Play', icon: 'eva-flash-outline' },
-  { name: 'stats', label: 'Stats', icon: 'eva-bar-chart-outline' },
-  { name: 'me', label: 'Profile', icon: 'eva-person-outline' },
+  { name: 'home', label: 'Home', icon: 'eva-home-outline', activeIcon: 'eva-home' },
+  { name: 'play', label: 'Play', icon: 'eva-flash-outline', activeIcon: 'eva-flash' },
+  { name: 'stats', label: 'Stats', icon: 'eva-bar-chart-outline', activeIcon: 'eva-bar-chart' },
+  { name: 'me', label: 'Profile', icon: 'eva-person-outline', activeIcon: 'eva-person' },
 ]
+
+// Re-tapping the current tab scrolls back to the top (native convention).
+function onTab(tab) {
+  haptic('light')
+  if (route.name === tab.name) {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
 </script>
 
 <style scoped>
@@ -80,6 +103,7 @@ const tabs = [
 
 .header-logo {
   height: 26px;
+  width: auto;
   display: block;
 }
 
@@ -100,6 +124,7 @@ const tabs = [
   font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
+  min-height: 36px;
 }
 
 .header-session-dot {

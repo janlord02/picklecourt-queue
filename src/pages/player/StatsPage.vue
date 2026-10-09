@@ -88,8 +88,10 @@
       </template>
 
       <div v-else-if="!auth.isAuthenticated || !myStats" class="play-card empty-state">
-        <div class="empty-state-title">No session yet</div>
-        <div class="text-caption">Join a session to see live stats and the leaderboard.</div>
+        <span class="empty-state-icon"><q-icon name="eva-bar-chart-outline" size="28px" /></span>
+        <div class="empty-state-title">No stats yet</div>
+        <div class="text-caption q-mb-md">Join a session to see your record, live standings and recent games.</div>
+        <q-btn color="primary" unelevated no-caps label="Find a session" :to="{ name: 'home' }" />
       </div>
 
       <!-- Session history: tap to review that session's board -->
@@ -99,7 +101,7 @@
           <div
             v-for="entry in myStats.history"
             :key="entry.session_id"
-            class="list-row cursor-pointer"
+            class="list-row cursor-pointer tappable"
             @click="openHistory(entry)"
           >
             <div class="col">

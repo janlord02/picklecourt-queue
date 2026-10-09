@@ -16,6 +16,10 @@ export const usePlaySessionStore = defineStore('playSession', () => {
   const state = ref(null)
   const loading = ref(false)
   const error = ref(null)
+  // When state last arrived from the server — drives "offline / last
+  // updated" banners. accessLost: the session vanished or we were removed.
+  const lastSyncedAt = ref(null)
+  const accessLost = ref(false)
 
   const auth = useAuthStore()
 
@@ -73,12 +77,15 @@ export const usePlaySessionStore = defineStore('playSession', () => {
       const data = await openPlay.getState(forId)
       if (seq === fetchSeq && sessionId.value === forId) {
         state.value = data
+        lastSyncedAt.value = Date.now()
+        accessLost.value = false
       }
       return data
     } catch (e) {
       if (seq !== fetchSeq || sessionId.value !== forId) throw e // stale failure — ignore
       error.value = e.response?.data?.message || e.message
       if (e.response?.status === 403 || e.response?.status === 404) {
+        accessLost.value = true
         setActive(null)
       }
       throw e
@@ -126,6 +133,8 @@ export const usePlaySessionStore = defineStore('playSession', () => {
     state,
     loading,
     error,
+    lastSyncedAt,
+    accessLost,
     session,
     courts,
     players,

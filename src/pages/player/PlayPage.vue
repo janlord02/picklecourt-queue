@@ -20,12 +20,13 @@
       <div class="text-caption q-mt-sm" style="opacity: 0.7">Tap anywhere to dismiss</div>
     </div>
 
+    <q-pull-to-refresh no-mouse color="primary" :disable="!playStore.sessionId" @refresh="onPull">
     <div class="app-page">
       <!-- No active session -->
       <div v-if="!playStore.sessionId" class="play-card empty-state">
-        <q-icon name="eva-flash-outline" size="40px" class="q-mb-sm" />
+        <span class="empty-state-icon"><q-icon name="eva-flash-outline" size="28px" /></span>
         <div class="empty-state-title">You're not in a session</div>
-        <div class="text-caption q-mb-md">Join an open play session to see your live queue.</div>
+        <div class="text-caption q-mb-md">Join an open play session with its code or QR to see your live queue.</div>
         <q-btn color="primary" unelevated no-caps label="Find a session" :to="{ name: 'home' }" />
       </div>
 
@@ -38,8 +39,57 @@
           </div>
         </div>
 
+        <SyncStatusBanner
+          :last-synced-at="playStore.lastSyncedAt"
+          :error="playStore.error"
+          :on-retry="() => playStore.fetchState()"
+        />
+
+        <!-- "You're up" alerts: sound/notifications need a tap to enable;
+             keeping the screen on stops the phone locking while you wait. -->
+        <div v-if="me && sessionRunning && !['checked_out', 'no_show'].includes(me.status)" class="alerts-row q-mb-md">
+          <q-btn
+            v-if="!alertsOn"
+            outline
+            no-caps
+            dense
+            color="primary"
+            icon="eva-bell-outline"
+            label="Turn on “you're up” alerts"
+            class="q-px-sm"
+            @click="enableAlerts"
+          />
+          <span v-else class="text-caption text-positive row items-center" style="gap: 4px">
+            <q-icon name="eva-bell-outline" /> Alerts on
+          </span>
+          <q-toggle
+            v-if="wakeLockSupported"
+            :model-value="keepScreenOn"
+            dense
+            size="sm"
+            label="Keep screen on"
+            class="text-caption"
+            @update:model-value="toggleScreen"
+          />
+        </div>
+
+        <!-- Session over / cancelled: no more queue actions -->
+        <div v-if="playStore.session.status === 'ended'" class="play-card q-mb-md text-center">
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">Session ended — thanks for playing! 🏆</div>
+          <div v-if="me" class="text-body2 text-grey-8 q-mb-md tnum">
+            Your record: {{ me.wins }}–{{ me.losses }} in {{ me.games_played }} {{ me.games_played === 1 ? 'game' : 'games' }}
+          </div>
+          <q-btn color="primary" unelevated no-caps label="See the leaderboard" :to="{ name: 'stats' }" class="q-mr-sm" />
+          <q-btn flat no-caps color="grey-8" label="Leave session" @click="leaveSession" />
+        </div>
+        <div v-else-if="playStore.session.status === 'cancelled'" class="play-card q-mb-md text-center">
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">This session was cancelled</div>
+          <div class="text-caption text-grey-7 q-mb-md">The organizer cancelled it. Check with them for a new session.</div>
+          <q-btn color="primary" unelevated no-caps label="Find another session" @click="leaveSession" />
+        </div>
+
         <!-- Not checked in yet -->
-        <div v-if="me && me.status === 'registered'" class="play-card q-mb-md text-center">
+        <div v-else-if="me && me.status === 'registered'" class="play-card q-mb-md text-center">
           <div class="text-subtitle1 text-weight-bold q-mb-sm">You're registered 🎟</div>
           <div class="text-caption text-grey-7 q-mb-md">
             Check in when you arrive at the venue to enter the queue.
@@ -211,17 +261,23 @@
         </div>
       </template>
 
-      <div v-else-if="playStore.loading" class="text-center q-pa-xl">
-        <q-spinner size="32px" color="primary" />
+      <SkeletonList v-else-if="playStore.loading" hero :rows="2" />
+
+      <!-- First load failed (bad venue wifi) — don't leave a blank page -->
+      <div v-else-if="playStore.error" class="play-card empty-state">
+        <span class="empty-state-icon"><q-icon name="eva-wifi-off-outline" size="28px" /></span>
+        <div class="empty-state-title">Couldn't load your session</div>
+        <div class="text-caption q-mb-md">Check your connection and try again.</div>
+        <q-btn color="primary" unelevated no-caps label="Retry" :loading="retrying" @click="retryLoad" />
       </div>
     </div>
-  </q-page>
+    </q-pull-to-refresh>
 
   <!-- Break duration sheet -->
   <q-dialog v-model="breakDialog" position="bottom">
     <q-card class="sheet">
       <q-card-section class="q-pa-md">
-        <div class="text-subtitle1 text-weight-bold q-mb-sm">Take a break</div>
+        <div class="sheet-title q-mb-xs">Take a break</div>
         <div class="text-caption text-grey-7 q-mb-md">
           Your queue priority is saved — break time doesn't count as waiting.
         </div>
@@ -232,6 +288,7 @@
               outline
               no-caps
               color="primary"
+              padding="12px 0"
               :label="`${minutes} min`"
               @click="startBreak(minutes)"
             />
@@ -242,16 +299,18 @@
           outline
           no-caps
           color="grey-8"
+          padding="12px 0"
           label="Until I return"
           @click="startBreak(null)"
         />
       </q-card-section>
     </q-card>
   </q-dialog>
+  </q-page>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import MatchTeams from 'src/components/MatchTeams.vue'
 import StatusChip from 'src/components/StatusChip.vue'
@@ -260,6 +319,10 @@ import { usePlayCalledRealtime, usePlaySessionRealtime } from 'src/composables/u
 import { useAuthStore } from 'src/stores/auth'
 import { usePlaySessionStore } from 'src/stores/playSession'
 import { formatSeconds, formatWaitRange } from 'src/utils/format'
+import SyncStatusBanner from 'src/components/SyncStatusBanner.vue'
+import SkeletonList from 'src/components/SkeletonList.vue'
+import { haptic } from 'src/utils/native'
+import { alertCalled, alertsState, alertsSupported, primeAlerts, setKeepScreenOn } from 'src/utils/calledAlert'
 
 const $q = useQuasar()
 const auth = useAuthStore()
@@ -298,13 +361,48 @@ const userIdRef = computed(() => auth.user?.id)
 usePlayCalledRealtime(userIdRef, (payload) => {
   calledCourtLabel.value = payload?.court_label || null
   showCalledTakeover.value = true
-  try {
-    navigator.vibrate?.([200, 100, 200, 100, 400])
-  } catch {
-    // vibration unsupported — ignore
-  }
+  haptic('warning')
+  alertCalled({ courtLabel: calledCourtLabel.value })
   playStore.fetchState().catch(() => {})
-})
+}, { onResync: () => playStore.fetchState().catch(() => {}) })
+
+// ——— Alerts / keep screen on ———
+const sessionRunning = computed(() => ['open', 'live'].includes(playStore.session?.status))
+const alertsOn = ref(alertsState().sound)
+const wakeLockSupported = alertsSupported().wakeLock
+const keepScreenOn = ref(false)
+async function enableAlerts() {
+  const st = await primeAlerts()
+  alertsOn.value = st.sound
+  $q.notify({
+    message: st.notifications === 'denied'
+      ? 'Sound is on. Notifications are blocked in your browser settings.'
+      : 'Alerts on — we’ll chime when you’re called.',
+    color: 'positive',
+  })
+}
+async function toggleScreen(on) {
+  keepScreenOn.value = await setKeepScreenOn(on)
+  if (on && !keepScreenOn.value) $q.notify({ message: 'Your browser won’t keep the screen on.', color: 'warning' })
+}
+onBeforeUnmount(() => setKeepScreenOn(false))
+
+const retrying = ref(false)
+async function retryLoad() {
+  retrying.value = true
+  try {
+    await playStore.fetchState()
+  } catch {
+    // card stays
+  } finally {
+    retrying.value = false
+  }
+}
+
+function leaveSession() {
+  setKeepScreenOn(false)
+  playStore.setActive(null)
+}
 
 // Also raise the takeover when a refetch reveals we're called (e.g. app was
 // backgrounded and the socket event was missed).
@@ -313,6 +411,8 @@ watch(
   (status, prev) => {
     if (status === 'called' && prev !== 'called' && !myReadyAt.value) {
       showCalledTakeover.value = true
+      // Missed the socket ping (phone slept) — alert now that we know.
+      if (prev) alertCalled({ courtLabel: calledCourtLabel.value })
     }
     if (status !== 'called') {
       showCalledTakeover.value = false
@@ -328,9 +428,11 @@ async function confirmReady() {
   readyLoading.value = true
   try {
     await playStore.ready()
+    haptic('success')
     showCalledTakeover.value = false
     $q.notify({ message: 'You’re marked ready — head to your court! 🎾', color: 'positive' })
   } catch (e) {
+    haptic('error')
     $q.notify({
       message: e.response?.data?.message || e.message || 'Could not mark ready',
       color: 'negative',
@@ -341,11 +443,15 @@ async function confirmReady() {
 }
 
 async function doCheckIn() {
+  // The tap is our chance to unlock sound + ask for notifications.
+  primeAlerts().then((st) => (alertsOn.value = st.sound))
   actionLoading.value = true
   try {
     await playStore.checkIn()
+    haptic('success')
     $q.notify({ message: 'Checked in — you’re in the queue!', color: 'positive' })
   } catch (e) {
+    haptic('error')
     $q.notify({ message: e.response?.data?.message || 'Check-in failed', color: 'negative' })
   } finally {
     actionLoading.value = false
@@ -356,7 +462,9 @@ async function doJoin() {
   actionLoading.value = true
   try {
     await playStore.join(playStore.sessionId, { check_in: true })
+    haptic('success')
   } catch (e) {
+    haptic('error')
     $q.notify({ message: e.response?.data?.message || 'Could not join', color: 'negative' })
   } finally {
     actionLoading.value = false
@@ -367,7 +475,9 @@ async function doAction(action, extra = {}) {
   actionLoading.value = true
   try {
     await playStore.myAction(action, extra)
+    haptic('light')
   } catch (e) {
+    haptic('error')
     $q.notify({ message: e.response?.data?.message || 'Action failed', color: 'negative' })
   } finally {
     actionLoading.value = false
@@ -388,9 +498,29 @@ function confirmCheckOut() {
   }).onOk(() => doAction('check_out'))
 }
 
+async function onPull(done) {
+  try {
+    await playStore.fetchState()
+  } catch {
+    // SyncStatusBanner shows the error
+  } finally {
+    done()
+  }
+}
+
 onMounted(() => {
   if (playStore.sessionId) {
     playStore.fetchState().catch(() => {})
   }
 })
 </script>
+
+<style scoped>
+.alerts-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+</style>
