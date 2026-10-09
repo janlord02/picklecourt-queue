@@ -105,6 +105,7 @@ import { useRoute, useRouter } from 'vue-router'
 import logoUrl from 'src/assets/logo.png'
 import { api } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
+import { publicAppUrl } from 'src/utils/publicUrl'
 
 const $q = useQuasar()
 const route = useRoute()
@@ -143,7 +144,11 @@ function openForgot() {
 async function sendReset() {
   sendingReset.value = true
   try {
-    await api.post('/password/forgot', { email: forgotEmail.value })
+    // Bring the emailed link back to this app (not the booking site).
+    await api.post('/password/forgot', {
+      email: forgotEmail.value,
+      reset_url: `${publicAppUrl()}/reset-password`,
+    })
     forgotDialog.value = false
     $q.notify({
       message: `If an account exists for ${forgotEmail.value}, a reset link is on its way.`,

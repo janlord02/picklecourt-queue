@@ -66,8 +66,7 @@
           </template>
         </div>
 
-        <!-- Plan: business members (booking-app subscribers) ride free
-             forever; everyone else is free during early access. -->
+        <!-- Plan: PickleCourt Queue is 100% free forever for everyone. -->
         <div class="play-card q-mb-md">
           <div class="row items-center no-wrap" style="gap: 10px">
             <div class="col">
@@ -158,9 +157,47 @@
           </q-item>
         </q-list>
 
+        <!-- In-app account deletion (App Store / Google Play requirement) -->
+        <q-list class="play-card q-pa-none q-mt-md">
+          <q-item clickable @click="deleteDialog = true">
+            <q-item-section avatar><q-icon name="eva-trash-2-outline" color="grey-7" /></q-item-section>
+            <q-item-section>
+              <q-item-label class="text-grey-8">Delete account</q-item-label>
+              <q-item-label caption>Permanently remove your account and personal data</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-list>
+
         <div class="text-caption text-center text-grey-5 q-mt-lg">
-          PickleCourt Queue · open play queues &amp; smart matchmaking
+          PickleCourt Queue · free forever · open play queues &amp; smart matchmaking
         </div>
+
+        <q-dialog v-model="deleteDialog">
+          <q-card style="width: 380px; max-width: 94vw; border-radius: 18px">
+            <q-card-section>
+              <div class="text-subtitle1 text-weight-bold q-mb-xs">Delete your account?</div>
+              <div class="text-body2 text-grey-8">
+                This permanently removes your name, email, phone and photo, and signs you out everywhere.
+                Your past games stay in organizers' records as “Deleted player”. This can't be undone.
+              </div>
+              <q-input
+                v-model="deletePassword"
+                class="q-mt-md"
+                outlined
+                dense
+                type="password"
+                label="Enter your password to confirm"
+                autocomplete="current-password"
+                :error="!!deleteError"
+                :error-message="deleteError"
+              />
+            </q-card-section>
+            <q-card-actions align="right" class="q-px-md q-pb-md">
+              <q-btn flat no-caps label="Keep my account" v-close-popup />
+              <q-btn unelevated no-caps color="negative" label="Delete account" :disable="!deletePassword" :loading="deleting" @click="deleteAccount" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
       </template>
     </div>
 
@@ -243,6 +280,7 @@ import {
   declineInvitation,
 } from 'src/api/openPlay'
 import { useAuthStore } from 'src/stores/auth'
+import { api } from 'src/boot/axios'
 import { usePlaySessionStore } from 'src/stores/playSession'
 import { statusLabel } from 'src/utils/format'
 
@@ -321,10 +359,9 @@ const plan = computed(() => {
     }
   }
   return {
-    forever: false,
-    tag: 'Early access · Free',
-    caption:
-      'Unlimited sessions during early access. Businesses subscribed to PickleCourt booking keep the queue app 100% free.',
+    forever: true,
+    tag: '100% Free',
+    caption: 'Unlimited sessions, players and courts — free forever, for everyone.',
   }
 })
 
@@ -402,6 +439,28 @@ async function leaveOne(entry) {
 function stopViewing() {
   playStore.setActive(null)
   sessionsDialog.value = false
+}
+
+// ——— Delete account ———
+const deleteDialog = ref(false)
+const deletePassword = ref('')
+const deleteError = ref('')
+const deleting = ref(false)
+async function deleteAccount() {
+  deleting.value = true
+  deleteError.value = ''
+  try {
+    await api.delete('/user', { data: { password: deletePassword.value } })
+    auth.clearSession()
+    localStorage.removeItem('play_active_session')
+    deleteDialog.value = false
+    $q.notify({ message: 'Your account has been deleted.', color: 'grey-9' })
+    router.replace({ name: 'home' })
+  } catch (e) {
+    deleteError.value = e.response?.data?.errors?.password?.[0] || e.response?.data?.message || 'Could not delete the account'
+  } finally {
+    deleting.value = false
+  }
 }
 
 async function doLogout() {

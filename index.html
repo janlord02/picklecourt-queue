@@ -10,14 +10,49 @@
       content="width=device-width, initial-scale=1<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, viewport-fit=cover, user-scalable=no, maximum-scale=1<% } %>"
     />
 
-    <title><%= productName %></title>
-    <meta name="description" content="<%= productDescription %>" />
+    <!-- Fixed SEO for PickleCourt Queue (openplay.picklecourt.ph). Crawlers /
+         link-preview bots routed to the backend get the same values from
+         App\Support\QueueAppSeo (incl. per-session join-link previews) —
+         keep the two in sync. -->
+    <title>PickleCourt Queue — Pickleball Open Play &amp; Matchmaking App</title>
+    <meta name="description" content="Run pickleball open play without the chaos. PickleCourt Queue gives you a fair queue, smart balanced matchmaking, live courts on any phone or TV, and a leaderboard — free for clubs, hosts and venues in the Philippines." />
+    <meta name="keywords" content="pickleball open play app, pickleball queue app, open play queue, pickleball matchmaking, pickleball court rotation, paddle queue, pickleball scoreboard, pickleball leaderboard, open play Philippines, PickleCourt Queue" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="application-name" content="PickleCourt Queue" />
+    <meta name="apple-mobile-web-app-title" content="PickleCourt Queue" />
+    <link rel="canonical" href="https://openplay.picklecourt.ph/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PickleCourt Queue" />
+    <meta property="og:locale" content="en_PH" />
+    <meta property="og:url" content="https://openplay.picklecourt.ph/" />
+    <meta property="og:title" content="PickleCourt Queue — Pickleball Open Play &amp; Matchmaking App" />
+    <meta property="og:description" content="Run pickleball open play without the chaos: a fair queue, smart balanced matchmaking, live courts on any phone or TV, and a leaderboard. Free for clubs, hosts and venues." />
+    <meta property="og:image" content="https://openplay.picklecourt.ph/og-image.png" />
+    <meta property="og:image:secure_url" content="https://openplay.picklecourt.ph/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="PickleCourt Queue — open play, organized: live courts, a fair queue and smart matchmaking." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PickleCourt Queue — Pickleball Open Play &amp; Matchmaking App" />
+    <meta name="twitter:description" content="A fair queue, smart matchmaking and live courts for pickleball open play — on any phone or TV." />
+    <meta name="twitter:image" content="https://openplay.picklecourt.ph/og-image.png" />
+    <meta name="twitter:image:alt" content="PickleCourt Queue — open play, organized." />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"WebApplication","name":"PickleCourt Queue","url":"https://openplay.picklecourt.ph/","description":"Run pickleball open play without the chaos: a fair queue, smart balanced matchmaking, live courts on any phone or TV, and a leaderboard.","applicationCategory":"SportsApplication","operatingSystem":"Web, iOS, Android","image":"https://openplay.picklecourt.ph/og-image.png","offers":{"@type":"Offer","price":"0","priceCurrency":"PHP"},"areaServed":{"@type":"Country","name":"Philippines"},"publisher":{"@type":"Organization","name":"PickleCourt","url":"https://picklecourt.ph/"}}
+    </script>
 
     <link rel="icon" type="image/png" sizes="128x128" href="/icons/favicon-128x128.png" />
     <link rel="icon" type="image/png" sizes="96x96" href="/icons/favicon-96x96.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
-    <link rel="apple-touch-icon" href="/icons/favicon-128x128.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <!-- Installable ("Add to Home Screen"): opens full-screen like an app. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <link rel="icon" type="image/ico" href="/favicon.ico" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />

@@ -1,7 +1,14 @@
 <template>
-  <q-btn flat dense round icon="eva-more-vertical-outline">
+  <q-btn
+    flat
+    round
+    class="tap-44"
+    color="grey-8"
+    icon="eva-more-vertical-outline"
+    :aria-label="player?.display_name ? `Actions for ${player.display_name}` : 'Player actions'"
+  >
     <q-menu auto-close>
-      <q-list dense style="min-width: 200px">
+      <q-list style="min-width: 220px">
         <q-item
           v-for="option in options"
           :key="option.action"
@@ -39,6 +46,13 @@ const options = computed(() => {
   const status = props.player?.status
   if (!status) return []
   const acts = []
+  // Self-joined guest waiting for the organizer.
+  if (status === 'pending_approval') {
+    return [
+      { action: 'approve', label: 'Approve & check in', icon: 'eva-checkmark-circle-outline', color: 'positive' },
+      { action: 'reject', label: 'Decline', icon: 'eva-close-circle-outline', color: 'negative' },
+    ]
+  }
   if (status === 'registered') {
     acts.push({ action: 'check_in', label: 'Check in', icon: 'eva-checkmark-circle-outline' })
   }

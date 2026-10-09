@@ -1,7 +1,7 @@
 {
   "name": "picklecourt-play",
   "version": "0.1.0",
-  "description": "PickleCourt Play — open play queuing, smart matchmaking and live courts",
+  "description": "PickleCourt Queue — open play queuing, smart matchmaking and live courts",
   "author": "Janlord Luga <janlord.luga1991@gmail.com>",
   "private": true,
   "dependencies": {
@@ -9,6 +9,10 @@
     "@capacitor/app": "^7.0.0",
     "@capacitor/cli": "^7.0.0",
     "@capacitor/core": "^7.0.0",
-    "@capacitor/ios": "^7.6.9"
+    "@capacitor/haptics": "^7.0.5",
+    "@capacitor/ios": "^7.6.9",
+    "@capacitor/keyboard": "^7.0.6",
+    "@capacitor/splash-screen": "^7.0.5",
+    "@capacitor/status-bar": "^7.0.6"
   }
 }

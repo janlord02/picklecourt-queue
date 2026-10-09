@@ -12,16 +12,27 @@
       <q-spinner size="48px" color="white" />
     </div>
 
+    <div v-else-if="sessionGone || sessionCancelled" class="flex flex-center column" style="min-height: 100vh; gap: 12px">
+      <q-icon name="eva-close-circle-outline" size="48px" color="white" />
+      <div class="text-white text-h5 text-weight-bold">{{ state.session.name }}</div>
+      <div class="text-subtitle1" style="color: rgba(255, 255, 255, 0.75)">
+        {{ sessionCancelled ? 'This session was cancelled.' : 'This session is no longer available.' }}
+      </div>
+    </div>
+
     <template v-else>
       <header class="display-header">
         <div>
           <div class="display-brand">
-            <img :src="logoUrl" alt="PickleCourt" class="display-logo" />
+            <img :src="logoUrl" alt="PickleCourt" class="display-logo" decoding="async" />
             <span class="brand-badge">QUEUE</span>
           </div>
           <div class="display-title">{{ state.session.name }}</div>
           <div class="display-sub">
-            <template v-if="sessionEnded">
+            <template v-if="state.session.status === 'draft'">
+              {{ state.session.date }} · starting soon
+            </template>
+            <template v-else-if="sessionEnded">
               {{ state.session.date }} · session ended ·
               {{ state.stats.games_completed }} games played
             </template>
@@ -31,7 +42,8 @@
             </template>
           </div>
         </div>
-        <div v-if="!sessionEnded" class="display-qr">
+        <!-- Only invite scans while players can actually join -->
+        <div v-if="joinable" class="display-qr">
           <canvas ref="qrCanvas" />
           <div class="display-code">{{ code }}</div>
           <div class="display-qr-sub">Scan to join</div>
@@ -39,9 +51,20 @@
       </header>
 
       <!-- Voice announcements: the venue TV is the natural announcer -->
+      <div v-if="stale" class="display-stale" role="status">
+        <q-icon name="eva-wifi-off-outline" /> Reconnecting… last updated {{ lastUpdatedText }}
+      </div>
+      <button
+        class="display-fs-btn"
+        :aria-label="isFullscreen ? 'Exit full screen' : 'Full screen'"
+        @click="toggleFullscreen"
+      >
+        <q-icon :name="isFullscreen ? 'eva-collapse-outline' : 'eva-expand-outline'" size="20px" />
+      </button>
       <button
         class="display-voice-btn"
         :class="{ 'display-voice-btn--on': voiceSettings.enabled }"
+        :aria-label="voiceSettings.enabled ? 'Voice announcements on' : 'Voice announcements off'"
         @click="voiceDialog = true"
       >
         <q-icon
@@ -94,28 +117,32 @@
         <!-- Courts -->
         <section class="display-courts">
           <div
-            v-for="court in state.courts"
+            v-for="{ court, match, onDeck } in courtRows"
             :key="court.id"
             class="display-court"
-            :class="{ 'display-court--ondeck': isOnDeck(court) }"
+            :class="{ 'display-court--ondeck': onDeck }"
           >
             <div class="display-court-head">
               <span class="display-court-label">{{ court.label }}</span>
-              <span v-if="isOnDeck(court)" class="display-ondeck-badge">
+              <span v-if="onDeck" class="display-ondeck-badge">
                 <q-icon name="eva-arrow-circle-right-outline" />On deck
               </span>
               <span v-else class="display-court-status">
                 <i class="display-dot" :class="`display-dot--${court.status}`" />
                 {{ courtStatusLabel(court.status) }}
               </span>
-              <span v-if="elapsedFor(court)" class="display-court-timer">{{
-                elapsedFor(court)
-              }}</span>
+              <!-- Ticks on its own; the board itself doesn't re-render each second. -->
+              <CourtTimer
+                v-if="match?.status === 'playing' && match.started_at"
+                plain
+                class="display-court-timer"
+                :started-at="match.started_at"
+              />
             </div>
-            <template v-if="matchFor(court)">
+            <template v-if="match">
               <div class="display-court-body">
                 <div
-                  v-for="(team, t) in [matchFor(court).team_a, matchFor(court).team_b]"
+                  v-for="(team, t) in [match.team_a, match.team_b]"
                   :key="t"
                   class="display-team-wrap"
                 >
@@ -163,6 +190,7 @@
                 }}</span>
               </div>
               <div v-if="!winnersQueue.length" class="display-sub q-mt-sm">Nobody yet</div>
+              <div v-else-if="winnersTotal > winnersQueue.length" class="display-sub q-mt-sm">+{{ winnersTotal - winnersQueue.length }} more</div>
             </div>
 
             <div class="display-pool-col">
@@ -182,6 +210,7 @@
                 }}</span>
               </div>
               <div v-if="!challengersQueue.length" class="display-sub q-mt-sm">Nobody yet</div>
+              <div v-else-if="challengersTotal > challengersQueue.length" class="display-sub q-mt-sm">+{{ challengersTotal - challengersQueue.length }} more</div>
             </div>
           </div>
 
@@ -197,6 +226,7 @@
               }}</span>
             </div>
             <div v-if="!queueRows.length" class="display-sub q-mt-md">Queue is empty</div>
+            <div v-else-if="queueTotal > queueRows.length" class="display-sub q-mt-sm">+{{ queueTotal - queueRows.length }} more waiting</div>
           </template>
         </aside>
       </main>
@@ -208,17 +238,19 @@
 </template>
 
 <script setup>
-import QRCode from 'qrcode'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import logoUrl from 'src/assets/logo.png'
 import { getDisplayState } from 'src/api/openPlay'
+import CourtTimer from 'src/components/CourtTimer.vue'
 import DisplayPromo from 'src/components/DisplayPromo.vue'
 import VoiceSettingsSheet from 'src/components/VoiceSettingsSheet.vue'
 import { useAnnouncer, useCallAnnouncer } from 'src/composables/useAnnouncer'
 import { usePlayDisplayRealtime } from 'src/composables/usePlayRealtime'
 import { courtStatusLabel, formatSeconds } from 'src/utils/format'
 import { isInWinnersPool, isLockedPair } from 'src/utils/pairs'
+import { setKeepScreenOn } from 'src/utils/calledAlert'
+import { joinUrl } from 'src/utils/publicUrl'
 
 const route = useRoute()
 const code = String(route.params.code || '').toUpperCase()
@@ -229,6 +261,11 @@ const qrCanvas = ref(null)
 // Ended sessions: the board turns into a results screen (2nd · 1st · 3rd
 // podium + everyone else) instead of courts/queue.
 const sessionEnded = computed(() => state.value?.session?.status === 'ended')
+const sessionCancelled = computed(() => state.value?.session?.status === 'cancelled')
+const joinable = computed(() => ['open', 'live'].includes(state.value?.session?.status))
+// Deleted after we had loaded it (404 on refresh).
+const sessionGone = ref(false)
+const lastUpdated = ref(null)
 const finalPodium = computed(() => {
   const [first, second, third] = state.value?.leaderboard || []
   if (!third) return null
@@ -245,18 +282,22 @@ const finalRest = computed(() => {
 let qrDrawn = false
 
 const queueRows = computed(() => (state.value?.queue || []).slice(0, 12))
+const queueTotal = computed(() => (state.value?.queue || []).length)
 
+const activeMatchesById = computed(
+  () => new Map((state.value?.matches?.active || []).map((m) => [m.id, m])),
+)
 function matchFor(court) {
   if (!court.active_match_id) return null
-  return (state.value?.matches?.active || []).find((m) => m.id === court.active_match_id) || null
+  return activeMatchesById.value.get(court.active_match_id) || null
 }
 
 function nameOf(playerId) {
-  return state.value?.players?.find((p) => p.id === playerId)?.display_name || '—'
+  return playersById.value.get(playerId)?.display_name || '—'
 }
 
 function playerFor(playerId) {
-  return state.value?.players?.find((p) => p.id === playerId) || null
+  return playersById.value.get(playerId) || null
 }
 
 // Locked doubles partner — shown as a pill so pairs read at a glance on the TV.
@@ -283,29 +324,26 @@ const queueTitle = computed(() =>
 const playersById = computed(() => new Map((state.value?.players || []).map((p) => [p.id, p])))
 const queuedIds = computed(() => new Set((state.value?.queue || []).map((e) => e.player_id)))
 const inWinners = (e) => isInWinnersPool(playersById.value.get(e.player_id), playersById.value, queuedIds.value)
-const winnersQueue = computed(() => (state.value?.queue || []).filter(inWinners).slice(0, 8))
-const challengersQueue = computed(() =>
-  (state.value?.queue || []).filter((e) => !inWinners(e)).slice(0, 8),
-)
+const winnersAll = computed(() => (state.value?.queue || []).filter(inWinners))
+const challengersAll = computed(() => (state.value?.queue || []).filter((e) => !inWinners(e)))
+const winnersQueue = computed(() => winnersAll.value.slice(0, 8))
+const challengersQueue = computed(() => challengersAll.value.slice(0, 8))
+const winnersTotal = computed(() => winnersAll.value.length)
+const challengersTotal = computed(() => challengersAll.value.length)
 
 // A staged/called match is the real "on deck" game for ANY format — the engine
 // has already resolved the correct pool/balanced teams onto this court.
-function isOnDeck(court) {
-  const match = matchFor(court)
-  return !!match && (match.status === 'staged' || match.status === 'called')
-}
+const courtRows = computed(() =>
+  (state.value?.courts || []).map((court) => {
+    const match = matchFor(court)
+    return { court, match, onDeck: !!match && (match.status === 'staged' || match.status === 'called') }
+  }),
+)
 
-// Live court timers
+// Court timers tick inside <CourtTimer>. The page only needs a slow clock
+// for the "Reconnecting…" stale badge.
 const nowTick = ref(Date.now())
-const tickInterval = setInterval(() => (nowTick.value = Date.now()), 1000)
-
-function elapsedFor(court) {
-  const match = matchFor(court)
-  if (!match || match.status !== 'playing' || !match.started_at) return ''
-  const seconds = Math.max(0, Math.floor((nowTick.value - new Date(match.started_at)) / 1000))
-  const minutes = Math.floor(seconds / 60)
-  return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
-}
+const tickInterval = setInterval(() => (nowTick.value = Date.now()), 10000)
 
 // ——— Voice announcements: the board speaks when a match becomes "called"
 // and repeats every N seconds while it stays called.
@@ -320,13 +358,16 @@ async function refresh() {
   try {
     state.value = await getDisplayState(code)
     loadError.value = false
+    sessionGone.value = false
+    lastUpdated.value = Date.now()
     syncAnnouncer()
   } catch (e) {
     // Before the first good load, a 404 means the code is wrong/expired —
     // show that instead of spinning forever. After a good load, keep the
     // last good state on transient errors.
-    if (!state.value && e.response?.status === 404) {
-      loadError.value = true
+    if (e.response?.status === 404) {
+      if (state.value) sessionGone.value = true
+      else loadError.value = true
     }
   }
 }
@@ -341,23 +382,51 @@ watch(state, async (value) => {
   if (!value || qrDrawn) return
   await nextTick()
   if (!qrCanvas.value) return
-  const joinUrl = `${window.location.origin}/join/${code}`
-  QRCode.toCanvas(qrCanvas.value, joinUrl, { width: 128, margin: 1 })
+  // Public address, never the page origin (https://localhost inside the app).
+  // qrcode is loaded on demand — only boards that are joinable need it.
+  import('qrcode')
+    .then(({ default: QRCode }) => QRCode.toCanvas(qrCanvas.value, joinUrl(code), { width: 128, margin: 1 }))
     .then(() => {
       qrDrawn = true
     })
     .catch(() => {})
 })
 
+// Never silently show old data on a TV: badge it after a minute without an
+// update (the realtime composable already polls/re-syncs on reconnect).
+const stale = computed(() => !!lastUpdated.value && nowTick.value - lastUpdated.value > 60000)
+const lastUpdatedText = computed(() =>
+  lastUpdated.value ? new Date(lastUpdated.value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '',
+)
+
+// Kiosk: full screen on demand, keep the TV awake, and reload once a night
+// so a board left on for days doesn't accumulate memory.
+const isFullscreen = ref(false)
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen?.()
+  else document.documentElement.requestFullscreen?.().catch(() => {})
+}
+const onFsChange = () => (isFullscreen.value = !!document.fullscreenElement)
+const bootedAt = Date.now()
+
 let pollTimer = null
+let nightlyTimer = null
 onMounted(() => {
   refresh()
-  // Fallback poll for venues with flaky sockets.
-  pollTimer = setInterval(refresh, 30000)
+  // Slow safety poll (sockets can look connected while dead).
+  pollTimer = setInterval(refresh, 60000)
+  document.addEventListener('fullscreenchange', onFsChange)
+  setKeepScreenOn(true)
+  nightlyTimer = setInterval(() => {
+    if (Date.now() - bootedAt > 12 * 3600 * 1000 && new Date().getHours() === 4) window.location.reload()
+  }, 10 * 60 * 1000)
 })
 onBeforeUnmount(() => {
   clearInterval(pollTimer)
   clearInterval(tickInterval)
+  clearInterval(nightlyTimer)
+  document.removeEventListener('fullscreenchange', onFsChange)
+  setKeepScreenOn(false)
 })
 </script>
 
@@ -768,6 +837,35 @@ onBeforeUnmount(() => {
 }
 .display-pair-tag .q-icon {
   font-size: 1em;
+}
+.display-stale {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: #fff6db;
+  color: #7a5300;
+  font-weight: 700;
+  font-size: clamp(13px, 1.2vw, 16px);
+  padding: 6px 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.display-fs-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 84px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+  z-index: 10;
 }
 .display-pair-tag--podium {
   max-width: 100%;

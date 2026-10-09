@@ -1,15 +1,15 @@
-// Configuration for PickleCourt Play (open play queuing app)
+// Configuration for PickleCourt Queue (open play queuing app)
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
 import { defineConfig } from '#q-app/wrappers'
 
 export default defineConfig((/* ctx */) => {
   return {
-    boot: ['axios'],
+    boot: ['axios', 'native'],
 
     css: ['app.scss'],
 
-    extras: ['mdi-v7', 'eva-icons', 'roboto-font', 'material-icons'],
+    extras: ['eva-icons', 'roboto-font'],
 
     build: {
       target: {

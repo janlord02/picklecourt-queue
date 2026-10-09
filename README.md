@@ -1,4 +1,4 @@
-# PickleCourt Play (pickleball-booking-queuing)
+# PickleCourt Queue (pickleball-booking-queuing)
 
 Open play queuing app: live queues, smart matchmaking, court management, and
 TV boards for pickleball open play. Quasar 2 / Vue 3 / Pinia SPA that talks

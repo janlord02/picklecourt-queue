@@ -116,3 +116,63 @@ export const acceptInvitation = (token) =>
   api.post(`/host-invitations/${token}/accept`).then(unwrap)
 export const declineInvitation = (token) =>
   api.post(`/host-invitations/${token}/decline`).then(unwrap)
+
+// ——— session tools (organizer) ———
+// Copy a session's setup (format, courts, settings) to a new date.
+export const duplicateSession = (id, payload) =>
+  api.post(`/play/sessions/${id}/duplicate`, payload).then(unwrap)
+// CSV download (players | matches) — fetched as a blob because the request
+// needs the auth header; the caller saves it.
+export const exportSessionCsv = (id, type) =>
+  api.get(`/play/sessions/${id}/export`, { params: { type }, responseType: 'blob' })
+
+// ——— guest self-join (no account; organizer approves) ———
+// The guest's phone keeps a private token per session in localStorage and
+// sends it as X-Guest-Token.
+const GUEST_KEY = 'play_guest_tokens'
+export function guestTokens() {
+  try {
+    return JSON.parse(localStorage.getItem(GUEST_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+export function saveGuestToken(code, token) {
+  const all = guestTokens()
+  all[String(code).toUpperCase()] = token
+  localStorage.setItem(GUEST_KEY, JSON.stringify(all))
+}
+export function forgetGuestToken(code) {
+  const all = guestTokens()
+  delete all[String(code).toUpperCase()]
+  localStorage.setItem(GUEST_KEY, JSON.stringify(all))
+}
+// Remember a declined sign-up so a refresh still explains what happened.
+const DECLINED_KEY = 'play_guest_declined'
+export function markGuestDeclined(code) {
+  try {
+    const all = JSON.parse(localStorage.getItem(DECLINED_KEY) || '{}')
+    all[String(code).toUpperCase()] = Date.now()
+    localStorage.setItem(DECLINED_KEY, JSON.stringify(all))
+  } catch {
+    // storage unavailable
+  }
+}
+export function wasGuestDeclined(code) {
+  try {
+    return !!JSON.parse(localStorage.getItem(DECLINED_KEY) || '{}')[String(code).toUpperCase()]
+  } catch {
+    return false
+  }
+}
+const guestHeaders = (token) => ({ headers: { 'X-Guest-Token': token } })
+
+export const guestJoin = (code, payload) =>
+  api.post(`/play/code/${code}/guest-join`, payload).then(unwrap)
+export const guestSession = (token) => api.get('/play/guest/session', guestHeaders(token)).then(unwrap)
+export const guestAction = (token, action, extra = {}) =>
+  api.post('/play/guest/action', { action, ...extra }, guestHeaders(token)).then(unwrap)
+export const guestReady = (token) => api.post('/play/guest/ready', {}, guestHeaders(token)).then(unwrap)
+// Signed-in user takes over their guest sign-up (moves games to the account).
+export const claimGuest = (guestToken) =>
+  api.post('/play/guest/claim', { guest_token: guestToken }).then(unwrap)

@@ -8,6 +8,8 @@ function resolveApiBaseUrl() {
 
 const api = axios.create({
   baseURL: resolveApiBaseUrl(),
+  // Courtside wifi drops: fail instead of leaving a spinner up forever.
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
@@ -62,6 +64,9 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token')
+      // Let the auth store drop its in-memory session too (it can't be
+      // imported here without a cycle).
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('play:auth-expired'))
       if (typeof window !== 'undefined') {
         const path = window.location.pathname || ''
         // Public surfaces (TV board, QR landing) never force a login.

@@ -1,4 +1,4 @@
-// PickleCourt Play — design system.
+// PickleCourt Queue — design system.
 //
 // Principles: one surface style (white, hairline border, soft radius — no
 // accent borders, no drop-shadow soup); status shown as small colored dots,
@@ -27,11 +27,100 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+// ——— native feel ———
+// No grey tap flash, no 300ms double-tap-zoom delay, and no rubber-band
+// bounce of the whole document (it drags the fixed header/tab bar along and
+// fights our own pull-to-refresh). Inner scroll areas still scroll normally.
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+// Controls behave like controls: long-press doesn't start a text selection
+// or the iOS callout. Text content and form fields stay selectable.
+.q-btn,
+.q-tab,
+.q-item--clickable,
+.q-chip--clickable,
+.q-toggle,
+.q-checkbox,
+.q-radio,
+.bottom-nav,
+.header-session,
+.tappable {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+// Momentum scrolling inside scroll containers (sheets, menus, lists), and a
+// scroll that ends at its edge doesn't chain into the page behind it.
+.scroll,
+.q-menu,
+.q-dialog__inner > div {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+// Pressed states. Touch screens get a quick "give" on tap; hover devices
+// keep their hover styles.
+.tappable {
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    background-color 0.12s ease,
+    opacity 0.12s ease;
+}
+
+@media (hover: none) {
+  .q-btn:not(.disabled):not(.q-btn--round):active {
+    transform: scale(0.97);
+  }
+
+  .q-btn {
+    transition: transform 0.1s ease;
+  }
+
+  .tappable:active {
+    background-color: rgba(12, 43, 35, 0.04);
+  }
+
+  .play-card.tappable:active,
+  .court-card.tappable:active {
+    transform: scale(0.985);
+  }
+}
+
+// Images never cause horizontal scroll and don't flash a broken-image box.
+img {
+  max-width: 100%;
+}
+
 .app-page {
   max-width: 640px;
   margin: 0 auto;
-  padding: 16px 16px 88px; // room for the bottom nav
+  // Room for the bottom tab bar (+ the home indicator on notched phones).
+  padding: 16px 16px calc(88px + env(safe-area-inset-bottom));
   width: 100%;
+}
+
+// Organizer console: no tab bar, just the home indicator.
+.app-page--console {
+  padding-bottom: calc(32px + env(safe-area-inset-bottom));
 }
 
 // ——— typography helpers ———
@@ -87,9 +176,23 @@ body {
   color: var(--ink-faint);
 
   .empty-state-title {
-    color: var(--ink-muted);
-    font-weight: 600;
-    font-size: 14px;
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 2px;
+  }
+
+  // Icon sits in a soft round well so the empty state reads as deliberate.
+  .empty-state-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--page);
+    color: var(--brand-teal);
+    margin-bottom: 12px;
   }
 }
 
@@ -112,6 +215,7 @@ body {
   background: #cbd5e1;
 
   &.dot-registered { background: #38bdf8; }
+  &.dot-pending_approval { background: #e5b500; }
   &.dot-waiting { background: var(--brand-teal); }
   &.dot-up_next { background: #eab308; }
   &.dot-called { background: #f97316; }
@@ -275,10 +379,24 @@ body {
   background: linear-gradient(165deg, #14473a 0%, var(--brand-deep) 70%);
   color: #fff;
   text-align: center;
-  padding: 24px;
+  padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+  animation: takeover-in 0.22s ease-out;
 
   .takeover-court {
     color: var(--lime);
+  }
+}
+
+@keyframes takeover-in {
+  from {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .called-takeover {
+    animation: none;
   }
 }
 
@@ -312,30 +430,72 @@ body {
   display: flex;
   background: var(--brand-deep);
   border-top: 1px solid #1d4a3d;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 0 max(4px, env(safe-area-inset-left)) env(safe-area-inset-bottom)
+    max(4px, env(safe-area-inset-right));
 
   .bottom-nav-tab {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
-    padding: 9px 0 7px;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px; // ≥44px target with room for the label
+    padding: 6px 0 5px;
     color: #8fb5a9;
     text-decoration: none;
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
     transition: color 0.15s ease;
+
+    // Active indicator: a soft pill behind the icon (Material 3 / iOS-ish).
+    .bottom-nav-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 28px;
+      border-radius: 999px;
+      transition:
+        background-color 0.2s ease,
+        transform 0.12s ease;
+    }
 
     .q-icon {
       font-size: 22px;
     }
 
+    &:active .bottom-nav-icon {
+      transform: scale(0.92);
+    }
+
     &.active {
       color: var(--lime);
+
+      .bottom-nav-icon {
+        background: rgba(199, 240, 0, 0.14);
+      }
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--lime);
+      outline-offset: -4px;
+      border-radius: 12px;
     }
   }
+}
+
+// Header clears the status bar / notch when the page runs edge-to-edge
+// (viewport-fit=cover). Inside the native iOS shell Quasar already pads the
+// first toolbar (body.q-ios-padding), so don't double it there.
+body:not(.q-ios-padding) .q-header.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.q-header.safe-top .q-toolbar {
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
 }
 
 // Desktop: navigation moves into the header — no thumb bar, no reserved
@@ -352,20 +512,45 @@ body {
 
 // ——— bottom sheets: grabber + rounded top ———
 .sheet {
-  border-radius: 20px 20px 0 0 !important;
+  border-radius: 22px 22px 0 0 !important;
   width: 100%;
   max-width: 480px;
   padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -8px 32px rgba(12, 43, 35, 0.16) !important;
 
   &::before {
     content: '';
     display: block;
     width: 36px;
-    height: 4px;
-    border-radius: 2px;
+    height: 5px;
+    border-radius: 3px;
     background: #d8dfda;
     margin: 8px auto 0;
   }
+}
+
+// The sheet itself pads for the home indicator, so the native iOS shell's
+// dialog padding would leave a gap under it — let bottom sheets touch the edge.
+body.q-ios-padding .q-dialog__inner--bottom {
+  padding-bottom: 0 !important;
+}
+
+// Long forms (create/edit session, choose players): use nearly the whole
+// screen on phones instead of Quasar's default 108px gap, so less scrolling
+// inside a cramped sheet.
+@media (max-width: 599px) {
+  .q-dialog__inner--bottom > .sheet.sheet--tall {
+    max-height: calc(100vh - 24px - env(safe-area-inset-top)) !important;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top)) !important;
+  }
+}
+
+// Sheet title row: title + close button, consistent across sheets.
+.sheet-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 // Even vertical rhythm for dialog forms (pair with `hide-bottom-space`).
@@ -400,7 +585,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: calc(40px + env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+    calc(40px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
 }
 
 .auth-wrap {
@@ -543,4 +729,60 @@ body {
   select {
     font-size: 16px !important;
   }
+}
+
+// ——— route transitions ———
+// A short fade + rise between pages; tab switches feel instant, not jumpy.
+.page-enter-active {
+  transition:
+    opacity 0.18s ease-out,
+    transform 0.18s ease-out;
+}
+
+.page-leave-active {
+  transition: opacity 0.1s ease-in;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.page-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: none;
+  }
+
+  .page-enter-from {
+    transform: none;
+  }
+
+  .q-btn,
+  .tappable,
+  .bottom-nav .bottom-nav-icon {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+// ——— skeletons: same surface as the real content, so nothing jumps ———
+.skeleton-card .q-skeleton {
+  background: #edf1ef;
+}
+
+// ——— pull-to-refresh puller in brand colors ———
+.q-pull-to-refresh__puller {
+  color: var(--brand-deep);
+  box-shadow: 0 2px 10px rgba(12, 43, 35, 0.18);
+}
+
+// Icon-only header buttons: full 44px tap target without looking bigger.
+.tap-44 {
+  min-width: 44px;
+  min-height: 44px;
 }
