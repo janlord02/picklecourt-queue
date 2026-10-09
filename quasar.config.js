@@ -42,7 +42,7 @@ export default defineConfig((/* ctx */) => {
       // Capacitor live reload loads http://LAN_IP:95xx — API calls to same origin /api avoid WKWebView CORS.
       proxy: {
         '/api': {
-          target: process.env.VITE_DEV_API_PROXY_TARGET || 'http://127.0.0.1:8000',
+          target: process.env.VITE_DEV_API_PROXY_TARGET || 'http://127.0.0.1:8003',
           changeOrigin: true,
           secure: false,
         },

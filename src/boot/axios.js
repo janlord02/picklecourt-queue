@@ -3,7 +3,7 @@ import axios from 'axios'
 import { getViteApiUrl } from 'src/utils/quasarEnv'
 
 function resolveApiBaseUrl() {
-  return getViteApiUrl() || 'http://localhost:8000/api'
+  return getViteApiUrl() || 'http://localhost:8003/api'
 }
 
 const api = axios.create({
