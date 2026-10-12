@@ -34,10 +34,14 @@ export async function setupNative(router) {
   document.documentElement.classList.add('is-native', `is-${platform()}`)
 
   try {
-    const { StatusBar, Style } = await import('@capacitor/status-bar')
-    await StatusBar.setStyle({ style: Style.Dark }) // light text on dark green
     if (platform() === 'android') {
-      await StatusBar.setBackgroundColor({ color: '#0c2b23' })
+      // Android 15+ is always edge-to-edge (no status bar colour): the dark
+      // green header runs under the bar and pads itself by the safe area.
+      const { SystemBars, SystemBarsStyle } = await import('@capacitor/core')
+      await SystemBars.setStyle({ style: SystemBarsStyle.Dark }) // light icons
+    } else {
+      const { StatusBar, Style } = await import('@capacitor/status-bar')
+      await StatusBar.setStyle({ style: Style.Dark }) // light text on dark green
     }
   } catch {
     // ignore

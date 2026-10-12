@@ -81,6 +81,8 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     home: 'PickleCourt Queue — Pickleball Open Play & Matchmaking App',
     play: `My game · ${SITE}`,
     stats: `My stats · ${SITE}`,
+    privacy: `Privacy policy · ${SITE}`,
+    'delete-account': `Delete your account · ${SITE}`,
     me: `Profile · ${SITE}`,
     'invite-accept': `Host invitation · ${SITE}`,
     join: `Join open play · ${SITE}`,

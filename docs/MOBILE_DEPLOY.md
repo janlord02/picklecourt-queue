@@ -13,6 +13,15 @@ apps. Everything native lives in `src-capacitor/`.
 | Category | Sports |
 | Sign-up | Email + password inside the app (plus "Join as guest" with no account) |
 | Account deletion | Profile → **Delete account** (required by both stores — already built) |
+| Privacy policy URL | `https://openplay.picklecourt.ph/privacy` |
+| Account deletion URL (Google Play) | `https://openplay.picklecourt.ph/delete-account` |
+| Native shell | Capacitor 8 · Android target API 36 · iOS 15+ |
+
+> **2026 store rules this build already meets:** Google Play requires new
+> apps and updates to **target API 36 (Android 16)** since 31 Aug 2026 —
+> done via Capacitor 8. Apple requires uploads built with **Xcode 26 / iOS 26
+> SDK** since 28 Apr 2026 — that's about the Mac you build on (below), not
+> the code.
 
 ---
 
@@ -30,9 +39,10 @@ apps. Everything native lives in `src-capacitor/`.
 US$99 (≈ ₱5,750) per year** to keep the iPhone app listed. (Peso amounts
 use ≈ ₱58 per US$ — your card may add a small foreign-transaction fee.)
 
-**About the Mac (iOS only).** Apple only accepts uploads built with a
-current Xcode, and current Xcode needs a recent macOS. This Mac runs
-**macOS 13 (Ventura)**, which can't install it. Options:
+**About the Mac (iOS only).** Apple only accepts uploads built with
+**Xcode 26**. Xcode 26.0–26.3 needs **macOS Sequoia 15.6+**; Xcode 26.4.1 and
+later need **macOS Tahoe 26.2+**. This Mac runs **macOS 13 (Ventura)**, which
+can't install either. Options:
 
 1. **Upgrade macOS** (Apple menu → System Settings → General → Software
    Update) if your Mac supports a current version — free.
@@ -44,7 +54,12 @@ current Xcode, and current Xcode needs a recent macOS. This Mac runs
      roughly US$1/hour or ~US$25–30/month.
 3. Borrow a newer Mac for an afternoon — the upload itself takes ~1 hour.
 
-Android can be built on this Mac as-is.
+Android can be built on this Mac as-is (Android Studio's built-in Java 21 —
+see 4c).
+
+**Tools on the computer that builds:** Node **22+** (Capacitor 8's CLI
+needs it — `nvm use 22`), Android Studio (bundles Java 21), and for iOS
+Xcode 26 + CocoaPods.
 
 **Optional, not required:** a D-U-N-S number (free, takes 1–2 weeks) only
 if you enroll Apple/Google as a **company** instead of as an individual.
@@ -71,11 +86,11 @@ Tick these off first — they're the usual reasons a first app gets stuck.
       `https://localhost` origins call the API). Run
       `php artisan migrate`, and make sure the scheduler (`schedule:run`
       every minute in cron) is running.
-- [ ] **Privacy policy URL** — both stores require one. You have
-      `https://picklecourt.ph/privacy-policy`. Add a short paragraph about
-      the queue app: name, email, optional mobile number and skill level,
-      game results, guest sign-ups, and that users can delete their account
-      in Profile → Delete account (or by emailing support@picklecourt.ph).
+- [ ] **Privacy policy URL** — both stores require one. It's built into the
+      app: **`https://openplay.picklecourt.ph/privacy`** (also linked in
+      Profile and on the sign-up screen). Account deletion page for Google
+      Play: **`https://openplay.picklecourt.ph/delete-account`**. Both go
+      live when the web app is deployed — open them once to check.
 - [ ] **Support URL / email** — `support@picklecourt.ph` (or a contact page).
 - [ ] **A demo account for Apple's reviewer** — create a normal player
       account (e.g. `appreview@picklecourt.ph` / a strong password) **and** a
@@ -91,6 +106,7 @@ Every store build starts the same way, from the `pickleball-booking-queuing` fol
 
 ```bash
 cd pickleball-booking-queuing
+nvm use 22                       # Capacitor 8 needs Node 22+
 npm install                      # first time / after pulling
 npx quasar build -m capacitor -T android   # for Google Play
 npx quasar build -m capacitor -T ios       # for the App Store
@@ -185,7 +201,7 @@ Then work through the **Dashboard** checklist:
 - **Target audience** — 18+ (simplest; avoids the children's-app rules).
 - **Data safety** — see section 8.
 - **Account deletion** — "Yes, users can delete their account in the app"
-  + web link: your privacy policy section or support email.
+  + web link: `https://openplay.picklecourt.ph/delete-account`.
 
 ### 4e. Test, then publish
 1. **Testing → Closed testing** → create a track → upload the `.aab` → add
@@ -338,7 +354,8 @@ store update. Backend changes reach both immediately.
 |---|---|
 | No way to delete an account | ✅ Profile → Delete account |
 | App can't be tested (login) | Give the demo account in review notes |
-| Missing privacy policy | Add the URL (section 2) |
+| Missing privacy policy | ✅ `openplay.picklecourt.ph/privacy`, linked in the app |
+| Old Android target | ✅ Targets API 36 (Capacitor 8) |
 | Icon with transparency | ✅ Opaque 1024×1024 icon generated |
 | Broken links / localhost | ✅ Share links & QR use openplay.picklecourt.ph |
 | "Just a website in a wrapper" | ✅ Native status bar, haptics, Android back button, splash, keyboard handling, offline banner, alerts |
@@ -352,6 +369,14 @@ store update. Backend changes reach both immediately.
   2732×2732 `splash.png` in `src-capacitor/assets/`, then
   `cd src-capacitor && npx @capacitor/assets generate --iconBackgroundColor '#ffffff' --splashBackgroundColor '#0c2b23'`.
 - **CocoaPods "Unicode Normalization" error:** run `export LANG=en_US.UTF-8` first.
+- **Status bar on Android 15/16:** Android now always draws the app
+  edge-to-edge (the old "status bar colour" setting is ignored). The dark
+  green header extends under the status bar and pads itself, with light
+  icons (`SystemBars` in `capacitor.config.json`).
+- **"You're up" alerts in the store app** play a chime and vibrate while the
+  app is open. Alerts while the phone is locked or the app is closed need
+  push notifications (Firebase + APNs) — a later project; tell testers to
+  keep the app open on the queue screen.
 - **Deep links** (tapping openplay.picklecourt.ph/join/CODE opens the app)
   aren't set up yet — links open in the browser, which works fine. They can
   be added later (needs two small files on the website).

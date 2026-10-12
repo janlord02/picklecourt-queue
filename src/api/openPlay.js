@@ -21,6 +21,9 @@ const unwrap = (response) => response.data.data
 
 // ——— sessions ———
 export const listSessions = (params) => api.get('/play/sessions', { params }).then(unwrap)
+// Super admin only: every session on the platform → { data, businesses }.
+export const listAllSessions = (params = {}) =>
+  api.get('/play/sessions', { params: { mine: 1, all: 1, ...params } }).then((r) => r.data)
 export const getSession = (id) => api.get(`/play/sessions/${id}`).then(unwrap)
 export const getState = (id) => api.get(`/play/sessions/${id}/state`).then(unwrap)
 export const createSession = (payload) => api.post('/play/sessions', payload).then(unwrap)

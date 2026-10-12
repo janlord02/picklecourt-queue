@@ -26,6 +26,11 @@
     "Keyboard": {
       "resize": "native",
       "resizeOnFullScreen": true
+    },
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK",
+      "initialViewportFitValueHint": "cover"
     }
   }
 }

@@ -15,11 +15,34 @@
         />
       </div>
 
+      <!-- Super admin: own sessions by default, or every session on the platform -->
+      <div v-if="isSuperAdmin" class="row items-center no-wrap q-mb-md" style="gap: 8px">
+        <q-toggle
+          v-model="showAll"
+          color="primary"
+          label="All sessions"
+          class="col-shrink"
+        />
+        <q-space />
+        <q-select
+          v-if="showAll"
+          v-model="businessFilter"
+          :options="businessOptions"
+          emit-value
+          map-options
+          outlined
+          dense
+          options-dense
+          label="Business"
+          style="min-width: 150px; max-width: 220px"
+        />
+      </div>
+
       <SkeletonList v-if="loading && !loaded" :rows="4" />
 
       <div v-else-if="!sessions.length" class="play-card empty-state">
         <span class="empty-state-icon"><q-icon name="eva-calendar-outline" size="28px" /></span>
-        <div class="empty-state-title">No sessions yet</div>
+        <div class="empty-state-title">{{ showAll ? 'No sessions found' : 'No sessions yet' }}</div>
         <div class="text-caption q-mb-md">
           Create your first open play session — players join with a code or QR. Hosting is free.
         </div>
@@ -74,6 +97,9 @@
                 >· {{ session.start_time.slice(0, 5) }}–{{ session.end_time?.slice(0, 5) }}</template
               >
               · {{ session.players_count }} players · code {{ session.join_code }}
+            </div>
+            <div v-if="showAll" class="text-caption text-primary">
+              {{ session.business?.name || 'Personal / no business' }}
             </div>
           </div>
           <q-btn
@@ -216,7 +242,7 @@ import { onMounted, reactive, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { computed } from 'vue'
-import { createSession, duplicateSession, getOrganizerContext, listSessions } from 'src/api/openPlay'
+import { createSession, duplicateSession, getOrganizerContext, listAllSessions, listSessions } from 'src/api/openPlay'
 import { useAuthStore } from 'src/stores/auth'
 import { FORMAT_OPTIONS } from 'src/utils/formats'
 import { validateSessionForm } from 'src/utils/sessionForm'
@@ -317,9 +343,34 @@ function sessionStatusLabel(status) {
   return { open: 'Open', draft: 'Draft', ended: 'Ended', cancelled: 'Cancelled' }[status] || status
 }
 
+// Super admin: "All sessions" opens every session on the platform; off =
+// only the sessions they organize, like everyone else.
+const isSuperAdmin = computed(() => auth.user?.role === 'super_admin')
+const showAll = ref(sessionStorage.getItem('play_sessions_show_all') === '1')
+const businessFilter = ref(null)
+const allBusinesses = ref([])
+const businessOptions = computed(() => [
+  { label: 'All businesses', value: null },
+  ...allBusinesses.value.map((b) => ({ label: b.name, value: b.id })),
+])
+watch(showAll, (on) => {
+  sessionStorage.setItem('play_sessions_show_all', on ? '1' : '0')
+  if (!on) businessFilter.value = null
+  load()
+})
+watch(businessFilter, () => {
+  if (showAll.value) load()
+})
+
 async function load() {
   loading.value = true
   try {
+    if (isSuperAdmin.value && showAll.value) {
+      const res = await listAllSessions(businessFilter.value ? { business_id: businessFilter.value } : {})
+      sessions.value = res.data || []
+      allBusinesses.value = res.businesses || []
+      return
+    }
     // mine=1: every session this user organizes, regardless of tenant.
     sessions.value = await listSessions({ mine: 1 })
   } catch (e) {

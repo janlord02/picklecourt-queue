@@ -18,6 +18,9 @@ const routes = [
         meta: { requiresAuth: true },
       },
       { path: 'me', name: 'me', component: () => import('pages/player/ProfilePage.vue') },
+      // Public legal pages (store listings link here; also linked in-app).
+      { path: 'privacy', name: 'privacy', component: () => import('pages/LegalPage.vue') },
+      { path: 'delete-account', name: 'delete-account', component: () => import('pages/LegalPage.vue') },
       // Host-invitation landing (public; the page handles sign-in/sign-up
       // itself so a not-yet-registered invitee can create an account first).
       {
