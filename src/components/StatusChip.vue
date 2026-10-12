@@ -1,8 +1,5 @@
 <template>
-  <span class="status-tag">
-    <i class="status-dot" :class="`dot-${status}`" />
-    <span>{{ statusLabel(status) }}</span>
-  </span>
+  <span class="status-tag" :class="`dot-${status}`">{{ statusLabel(status) }}</span>
 </template>
 
 <script setup>

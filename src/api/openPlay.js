@@ -87,6 +87,17 @@ export const updateTeams = (matchId, teamA, teamB, fairness = null) =>
     })
     .then(unwrap)
 
+// Court segregation groups (organizer-only). Courts and players point at a
+// group via play_group_id (null = open court / no group).
+export const createGroup = (sessionId, payload) =>
+  api.post(`/play/sessions/${sessionId}/groups`, payload).then(unwrap)
+export const updateGroup = (sessionId, groupId, payload) =>
+  api.patch(`/play/sessions/${sessionId}/groups/${groupId}`, payload).then(unwrap)
+export const deleteGroup = (sessionId, groupId) =>
+  api.delete(`/play/sessions/${sessionId}/groups/${groupId}`).then(unwrap)
+export const setPlayerGroup = (sessionId, playerId, groupId) =>
+  api.patch(`/play/sessions/${sessionId}/players/${playerId}`, { play_group_id: groupId }).then(unwrap)
+
 // Partner lock: pass a partner id to link the pair (engine keeps them on the
 // same team), or null to break the lock. No state transition involved.
 export const setLockedPartner = (sessionId, playerId, partnerId) =>

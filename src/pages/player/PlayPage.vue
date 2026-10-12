@@ -6,7 +6,7 @@
       <div v-if="calledCourtLabel" class="text-h5 text-weight-bold takeover-court">
         {{ calledCourtLabel }}
       </div>
-      <MatchTeams v-if="playStore.myActiveMatch" :match="playStore.myActiveMatch" show-ready />
+      <MatchTeams v-if="playStore.myActiveMatch" :match="playStore.myActiveMatch" :groups-by-id="playStore.groupsById" show-ready />
       <q-btn
         class="big-action q-mt-lg full-width"
         style="max-width: 320px"
@@ -108,6 +108,11 @@
         <div v-else-if="me && myQueue" class="play-card queue-hero q-mb-md">
           <div class="queue-hero-label">You're in the queue</div>
           <div class="queue-hero-number">#{{ myQueue.position }}</div>
+          <!-- Court segregation: their number counts their group's line only. -->
+          <div v-if="myGroup" class="q-mt-xs">
+            <GroupChip :group="myGroup" size="md" />
+            <span class="text-caption text-grey-7 q-ml-xs">{{ myGroup.name }} line</span>
+          </div>
           <div class="text-body2 text-grey-8 q-mt-sm">
             {{ formatWaitRange(myQueue.estimated_wait_min_seconds, myQueue.estimated_wait_max_seconds) }}
             <template v-if="myQueue.matches_before_estimate > 0">
@@ -135,7 +140,7 @@
           >
             {{ playStore.myActiveMatch.court_label }}
           </div>
-          <MatchTeams :match="playStore.myActiveMatch" show-ready />
+          <MatchTeams :match="playStore.myActiveMatch" :groups-by-id="playStore.groupsById" show-ready />
           <q-btn
             v-if="me.status === 'called' && !myReadyAt"
             class="big-action full-width q-mt-md"
@@ -196,7 +201,7 @@
             <div class="text-caption text-grey-6 text-center q-mb-xs">
               {{ match.court_label || 'Court TBA' }}
             </div>
-            <MatchTeams :match="match" :show-ready="match.status === 'called'" />
+            <MatchTeams :match="match" :groups-by-id="playStore.groupsById" :show-ready="match.status === 'called'" />
           </div>
         </template>
 
@@ -313,6 +318,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import MatchTeams from 'src/components/MatchTeams.vue'
+import GroupChip from 'src/components/GroupChip.vue'
 import StatusChip from 'src/components/StatusChip.vue'
 import WhyThisMatch from 'src/components/WhyThisMatch.vue'
 import { usePlayCalledRealtime, usePlaySessionRealtime } from 'src/composables/usePlayRealtime'
@@ -335,6 +341,7 @@ const showCalledTakeover = ref(false)
 const calledCourtLabel = ref(null)
 
 const me = computed(() => playStore.myPlayer)
+const myGroup = computed(() => (me.value?.play_group_id ? playStore.groupsById.get(me.value.play_group_id) || null : null))
 const myQueue = computed(() => playStore.myQueueEntry)
 const myPartnerName = computed(() => {
   const partnerId = me.value?.locked_partner_id

@@ -23,7 +23,7 @@
                 >code <b>{{ playStore.session.join_code }}</b></span
               >
               <span v-if="playStore.session.status === 'live'" class="live-tag">
-                <i class="live-dot" />Live
+                Live
               </span>
             </div>
           </div>
@@ -91,6 +91,10 @@
           >
             <q-menu auto-close>
               <q-list style="min-width: 220px">
+                <q-item v-if="!readOnly" clickable @click="groupsDialog = true">
+                  <q-item-section avatar><q-icon name="eva-grid-outline" size="18px" /></q-item-section>
+                  <q-item-section>Groups &amp; courts…</q-item-section>
+                </q-item>
                 <q-item clickable @click="downloadCsv('players')">
                   <q-item-section avatar><q-icon name="eva-download-outline" size="18px" /></q-item-section>
                   <q-item-section>Export players (CSV)</q-item-section>
@@ -202,10 +206,9 @@
           <div v-for="{ court, match, menu } in courtRows" :key="court.id" class="court-card q-mb-md">
             <div class="court-card-head">
               <span class="text-subtitle1 text-weight-bold">{{ court.label }}</span>
-              <span class="status-tag">
-                <i class="status-dot" :class="courtDot(court.status)" />
-                <span>{{ courtStatusLabel(court.status) }}</span>
-              </span>
+              <GroupChip v-if="court.play_group_id" :group="groupById(court.play_group_id)" size="md" />
+              <span v-else-if="playStore.groups.length" class="open-court-tag">Open</span>
+              <span class="status-tag" :class="courtDot(court.status)">{{ courtStatusLabel(court.status) }}</span>
               <q-space />
               <!-- Own 1s interval: only this text re-renders each second. -->
               <CourtTimer v-if="match?.status === 'playing'" :started-at="match.started_at" />
@@ -239,6 +242,8 @@
             <template v-if="match">
               <div class="court-card-body">
                 <MatchTeams
+                  :groups-by-id="playStore.groupsById"
+                  :court-group-id="court.play_group_id"
                   :match="match"
                   :show-ready="match.status === 'called'"
                 />
@@ -402,8 +407,17 @@
             <div class="text-caption q-mb-md">Players appear here when they check in. Share the code or QR to get them in.</div>
             <q-btn color="primary" outline no-caps icon="eva-share-outline" label="Invite players" @click="shareOpen = true" />
           </div>
-          <div v-else class="play-card">
-            <div v-for="{ entry, player, partner, pool } in queueRows" :key="entry.player_id" class="list-row">
+          <template v-else>
+          <template v-for="lane in queueLanes" :key="lane.key">
+          <!-- Court segregation: one lane per group with its own courts,
+               numbered within the lane (only shown when groups exist). -->
+          <div v-if="queueLanes.length > 1 || lane.group" class="lane-head">
+            <GroupChip v-if="lane.group" :group="lane.group" size="md" />
+            <span v-else class="open-court-tag">Open courts</span>
+            <span class="text-caption text-grey-7">{{ lane.courtsLabel }} · {{ lane.rows.length }} waiting</span>
+          </div>
+          <div class="play-card q-mb-md">
+            <div v-for="{ entry, player, partner, pool } in lane.rows" :key="entry.player_id" class="list-row">
               <div class="queue-pos">{{ entry.position }}</div>
               <div class="col cursor-pointer" @click="openPlayerDetail(entry.player_id)">
                 <div class="text-weight-bold">
@@ -422,14 +436,17 @@
                   <span v-if="pool" class="pool-tag q-ml-xs" :class="pool.cls">
                     {{ pool.label }}
                   </span>
+                  <GroupChip v-if="player?.play_group_id" :group="groupById(player.play_group_id)" class="q-ml-xs" />
                 </div>
               </div>
               <div class="text-caption text-grey-7 tnum">
                 {{ formatSeconds(entry.effective_wait_seconds) }}
               </div>
-              <PlayerActionMenu v-if="!readOnly" :player="player" @action="onPlayerAction" />
+              <PlayerActionMenu v-if="!readOnly" :player="player" :has-groups="playStore.groups.length > 0" @action="onPlayerAction" />
             </div>
           </div>
+          </template>
+          </template>
 
           <!-- Sidelined players -->
           <template v-if="sidelined.length">
@@ -437,10 +454,13 @@
             <div class="play-card">
               <div v-for="player in sidelined" :key="player.id" class="list-row">
                 <div class="col cursor-pointer" @click="openPlayerDetail(player.id)">
-                  <div class="text-weight-bold">{{ player.display_name }}</div>
+                  <div class="text-weight-bold">
+                    {{ player.display_name }}
+                    <GroupChip v-if="player.play_group_id" :group="groupById(player.play_group_id)" class="q-ml-xs" />
+                  </div>
                 </div>
                 <StatusChip :status="player.status" />
-                <PlayerActionMenu v-if="!readOnly" :player="player" @action="onPlayerAction" />
+                <PlayerActionMenu v-if="!readOnly" :player="player" :has-groups="playStore.groups.length > 0" @action="onPlayerAction" />
               </div>
             </div>
           </template>
@@ -508,17 +528,18 @@
                     <q-icon name="eva-link-outline" />
                     {{ partnerNameOf(player) }}
                   </span>
+                  <GroupChip v-if="player.play_group_id" :group="groupById(player.play_group_id)" class="q-ml-xs" />
                 </div>
               </div>
               <StatusChip :status="player.status" />
-              <PlayerActionMenu v-if="!readOnly" :player="player" @action="onPlayerAction" />
+              <PlayerActionMenu v-if="!readOnly" :player="player" :has-groups="playStore.groups.length > 0" @action="onPlayerAction" />
             </div>
           </div>
         </div>
 
         <!-- ======================= LEADERBOARD ======================= -->
         <div v-if="tab === 'leaderboard'">
-          <SessionLeaderboard :leaderboard="playStore.leaderboard" />
+          <SessionLeaderboard :leaderboard="playStore.leaderboard" :groups-by-id="playStore.groupsById" />
 
           <span class="section-label">Game log</span>
           <div class="play-card">
@@ -644,6 +665,16 @@
               </template>
             </q-select>
             <q-input v-model="addForm.guest_phone" outlined dense label="Mobile (optional)" />
+            <q-select
+              v-if="playStore.groups.length"
+              v-model="addForm.play_group_id"
+              outlined
+              dense
+              label="Group"
+              emit-value
+              map-options
+              :options="groupOptions"
+            />
             <q-toggle v-model="addForm.check_in" label="Check in now (enter the queue)" />
             <q-btn
               class="big-action full-width"
@@ -730,6 +761,7 @@
                 <div class="text-caption text-grey-7">
                   {{ candidate.games_played }} games
                   <template v-if="candidate.rating"> · {{ candidate.rating.toFixed(1) }}</template>
+                  <GroupChip v-if="candidate.play_group_id" :group="groupById(candidate.play_group_id)" class="q-ml-xs" />
                   <span v-if="partnerNameOf(candidate)" class="pair-tag q-ml-xs">
                     <q-icon name="eva-link-outline" />
                     {{ partnerNameOf(candidate) }}
@@ -786,6 +818,7 @@
                 <div class="text-caption text-grey-7">
                   {{ cand.games_played }} games
                   <template v-if="cand.rating"> · {{ cand.rating.toFixed(1) }}</template>
+                  <GroupChip v-if="cand.play_group_id" :group="groupById(cand.play_group_id)" class="q-ml-xs" />
                   <span v-if="partnerNameOf(cand)" class="pair-tag q-ml-xs">
                     <q-icon name="eva-link-outline" />
                     {{ partnerNameOf(cand) }}
@@ -1101,6 +1134,93 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Groups & courts (court segregation) -->
+    <q-dialog v-model="groupsDialog" position="bottom">
+      <q-card class="sheet sheet--tall">
+        <q-card-section class="q-pa-md">
+          <div class="sheet-title q-mb-xs">Groups &amp; courts</div>
+          <div class="text-caption text-grey-7 q-mb-md">
+            Split players by level, e.g. Beginner on Courts 1–2 and Novice on Courts 3–5. A group's courts only
+            call that group. Open courts call everyone else.
+          </div>
+
+          <span class="section-label">Groups</span>
+          <div v-for="g in playStore.groups" :key="g.id" class="list-row">
+            <button
+              type="button"
+              class="group-swatch"
+              :style="{ background: g.color }"
+              :aria-label="`Change ${g.name} color`"
+              @click="cycleGroupColor(g)"
+            />
+            <q-input
+              :model-value="g.name"
+              dense
+              borderless
+              class="col"
+              maxlength="40"
+              debounce="600"
+              @update:model-value="(v) => renameGroup(g, v)"
+            />
+            <span class="text-caption text-grey-7 q-mr-sm">{{ groupPlayerCount(g.id) }} players</span>
+            <q-btn flat round dense icon="eva-trash-2-outline" color="negative" :aria-label="`Delete ${g.name}`" @click="confirmDeleteGroup(g)" />
+          </div>
+          <q-form class="row items-center q-gutter-sm q-mt-sm" @submit.prevent="addGroup">
+            <q-input v-model="newGroupName" outlined dense class="col" placeholder="New group, e.g. Beginner" maxlength="40" />
+            <q-btn type="submit" color="primary" unelevated no-caps label="Add" :disable="!newGroupName.trim()" :loading="groupBusy" />
+          </q-form>
+
+          <template v-if="playStore.groups.length">
+            <span class="section-label q-mt-lg">Courts</span>
+            <div v-for="court in playStore.courts" :key="court.id" class="list-row">
+              <div class="col text-weight-bold">{{ court.label }}</div>
+              <q-select
+                :model-value="court.play_group_id"
+                dense
+                outlined
+                emit-value
+                map-options
+                style="min-width: 150px"
+                :options="courtGroupOptions"
+                @update:model-value="(v) => assignCourtGroup(court, v)"
+              />
+            </div>
+            <div v-if="unservedGroupNames.length" class="text-caption text-grey-7 q-mt-sm">
+              {{ unservedGroupNames.join(', ') }} {{ unservedGroupNames.length === 1 ? 'has' : 'have' }} no court yet, so
+              those players play on open courts.
+            </div>
+            <div v-if="noOpenCourtWarning" class="text-caption text-warning q-mt-sm">
+              Every court belongs to a group, so {{ noOpenCourtWarning }} without a group won't be called. Give them a group or leave a court open.
+            </div>
+          </template>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
+    <!-- Set a player's group -->
+    <q-dialog v-model="groupPickDialog" position="bottom">
+      <q-card class="sheet">
+        <q-card-section class="q-pa-md">
+          <div class="sheet-title q-mb-xs">Group for {{ groupPickPlayer?.display_name }}</div>
+          <div v-if="groupPickPlayer?.locked_partner_id" class="text-caption text-grey-7 q-mb-sm">
+            Their locked partner moves with them.
+          </div>
+          <div
+            v-for="opt in groupOptions"
+            :key="opt.value ?? 'none'"
+            class="list-row cursor-pointer"
+            @click="applyPlayerGroup(opt.value)"
+          >
+            <div class="col">
+              <GroupChip v-if="opt.value" :group="groupById(opt.value)" size="md" />
+              <span v-else class="text-weight-bold">No group</span>
+            </div>
+            <q-icon v-if="(groupPickPlayer?.play_group_id ?? null) === opt.value" name="eva-checkmark-outline" color="primary" size="20px" />
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -1118,6 +1238,10 @@ import {
   scoreMatch,
   amendMatch,
   setLockedPartner,
+  createGroup,
+  updateGroup,
+  deleteGroup,
+  setPlayerGroup,
   updatePlayerName,
   updatePlayerRating,
   exportSessionCsv,
@@ -1132,6 +1256,7 @@ import {
   removeSessionHost,
 } from 'src/api/openPlay'
 import MatchTeams from 'src/components/MatchTeams.vue'
+import GroupChip from 'src/components/GroupChip.vue'
 import { validateSessionForm } from 'src/utils/sessionForm'
 import SyncStatusBanner from 'src/components/SyncStatusBanner.vue'
 import PlayerActionMenu from 'src/components/PlayerActionMenu.vue'
@@ -1213,7 +1338,7 @@ const scoring = ref(false)
 const addDialog = ref(false)
 const adding = ref(false)
 
-const addForm = reactive({ display_name: '', rating: 3.5, guest_phone: '', check_in: true })
+const addForm = reactive({ display_name: '', rating: 3.5, guest_phone: '', check_in: true, play_group_id: null })
 
 const sessionId = Number(route.params.id)
 
@@ -1234,6 +1359,131 @@ function poolTagOf(playerId) {
 const openCourtCount = computed(
   () => playStore.courts.filter((c) => c.status === 'available').length,
 )
+
+// ——— Court segregation groups ———
+function groupById(id) {
+  return id ? playStore.groupsById.get(id) || null : null
+}
+const groupOptions = computed(() => [
+  { label: 'No group', value: null },
+  ...playStore.groups.map((g) => ({ label: g.name, value: g.id })),
+])
+const courtGroupOptions = computed(() => [
+  { label: 'Open (anyone)', value: null },
+  ...playStore.groups.map((g) => ({ label: g.name, value: g.id })),
+])
+function groupPlayerCount(groupId) {
+  return playStore.players.filter((p) => p.play_group_id === groupId && !['checked_out', 'no_show'].includes(p.status)).length
+}
+// "Courts 1–2" style summary of the courts a lane draws from.
+function courtsLabel(courts) {
+  if (!courts.length) return 'no court'
+  return courts.map((c) => c.label).join(', ')
+}
+const usableCourts = computed(() => playStore.courts.filter((c) => !['closed', 'maintenance'].includes(c.status)))
+// Queue lanes mirror the server's `lane` on each entry ("g<id>" or "open").
+const queueLanes = computed(() => {
+  const lanes = new Map()
+  for (const row of queueRows.value) {
+    const key = row.entry.lane || 'open'
+    if (!lanes.has(key)) lanes.set(key, [])
+    lanes.get(key).push(row)
+  }
+  const reservedIds = new Set(usableCourts.value.map((c) => c.play_group_id).filter(Boolean))
+  return [...lanes.entries()]
+    .map(([key, rows]) => {
+      const gid = key === 'open' ? null : Number(key.slice(1))
+      const courts = usableCourts.value.filter((c) =>
+        gid ? c.play_group_id === gid : !c.play_group_id || !reservedIds.has(c.play_group_id),
+      )
+      return { key, rows, group: groupById(gid), courtsLabel: courtsLabel(courts) }
+    })
+    .sort((a, b) => (a.group?.sort_order ?? 9999) - (b.group?.sort_order ?? 9999))
+})
+const unservedGroupNames = computed(() => {
+  const served = new Set(usableCourts.value.map((c) => c.play_group_id).filter(Boolean))
+  return playStore.groups.filter((g) => !served.has(g.id)).map((g) => g.name)
+})
+const noOpenCourtWarning = computed(() => {
+  if (!playStore.groups.length || usableCourts.value.some((c) => !c.play_group_id)) return ''
+  const n = playStore.players.filter((p) => !p.play_group_id && !['checked_out', 'no_show'].includes(p.status)).length
+  return n ? `${n} ${n === 1 ? 'player' : 'players'}` : ''
+})
+
+const groupsDialog = ref(false)
+const newGroupName = ref('')
+const groupBusy = ref(false)
+const GROUP_COLORS = ['#16a34a', '#2563eb', '#d97706', '#9333ea', '#dc2626', '#0891b2', '#db2777', '#4b5563']
+
+async function addGroup() {
+  const name = newGroupName.value.trim()
+  if (!name || groupBusy.value) return
+  groupBusy.value = true
+  try {
+    await createGroup(sessionId, { name })
+    newGroupName.value = ''
+    await refresh()
+  } catch (e) {
+    notifyError(e, 'Could not add the group')
+  } finally {
+    groupBusy.value = false
+  }
+}
+async function renameGroup(group, name) {
+  const clean = String(name || '').trim()
+  if (!clean || clean === group.name) return
+  try {
+    await updateGroup(sessionId, group.id, { name: clean })
+    await refresh()
+  } catch (e) {
+    notifyError(e, 'Could not rename the group')
+  }
+}
+async function cycleGroupColor(group) {
+  const next = GROUP_COLORS[(GROUP_COLORS.indexOf(group.color) + 1) % GROUP_COLORS.length]
+  try {
+    await updateGroup(sessionId, group.id, { color: next })
+    await refresh()
+  } catch (e) {
+    notifyError(e, 'Could not change the color')
+  }
+}
+function confirmDeleteGroup(group) {
+  $q.dialog({
+    title: `Delete ${group.name}?`,
+    message: 'Its players and courts become ungrouped (open). Games in progress are not affected.',
+    cancel: true,
+    ok: { label: 'Delete group', color: 'negative', unelevated: true },
+  }).onOk(async () => {
+    try {
+      await deleteGroup(sessionId, group.id)
+      await refresh()
+    } catch (e) {
+      notifyError(e, 'Could not delete the group')
+    }
+  })
+}
+async function assignCourtGroup(court, groupId) {
+  try {
+    await updateCourt(sessionId, court.id, { play_group_id: groupId })
+    await refresh()
+  } catch (e) {
+    notifyError(e, 'Could not assign the court')
+  }
+}
+
+const groupPickDialog = ref(false)
+const groupPickPlayer = ref(null)
+async function applyPlayerGroup(groupId) {
+  if (!groupPickPlayer.value) return
+  try {
+    await setPlayerGroup(sessionId, groupPickPlayer.value.id, groupId)
+    groupPickDialog.value = false
+    await refresh()
+  } catch (e) {
+    notifyError(e, 'Could not set the group')
+  }
+}
 
 // Ended/cancelled sessions are an archive: every operational control
 // (stage, call, add, court ops, player actions) disappears — only the
@@ -1901,7 +2151,7 @@ function confirmAbandon(match) {
   }).onOk(() => doMatch(cancelMatch, match))
 }
 
-// Court status → status-dot color class (shared dot palette).
+// Court status → status-tag color class (shared palette).
 function courtDot(status) {
   const map = {
     available: 'dot-waiting',
@@ -2197,6 +2447,11 @@ async function saveScore() {
 }
 
 async function onPlayerAction({ player, action, extra }) {
+  if (action === 'set_group') {
+    groupPickPlayer.value = player
+    groupPickDialog.value = true
+    return
+  }
   // Partner-lock entries aren't queue transitions — handle them here.
   if (action === 'lock_partner') {
     lockPlayer.value = player

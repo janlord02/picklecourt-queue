@@ -85,11 +85,8 @@
           <div class="col">
             <div class="row items-center no-wrap" style="gap: 8px">
               <span class="text-weight-bold">{{ session.name }}</span>
-              <span v-if="session.status === 'live'" class="live-tag"><i class="live-dot" />Live</span>
-              <span v-else class="status-tag">
-                <i class="status-dot" :class="sessionDot(session.status)" />
-                <span>{{ sessionStatusLabel(session.status) }}</span>
-              </span>
+              <span v-if="session.status === 'live'" class="live-tag">Live</span>
+              <span v-else class="status-tag" :class="sessionDot(session.status)">{{ sessionStatusLabel(session.status) }}</span>
             </div>
             <div class="text-caption text-grey-7">
               {{ session.date }}

@@ -236,7 +236,7 @@
                 <div class="row items-center no-wrap" style="gap: 8px">
                   <span class="text-weight-bold ellipsis">{{ entry.name }}</span>
                   <span v-if="entry.id === playStore.sessionId" class="live-tag">
-                    <i class="live-dot" />Viewing
+                    Viewing
                   </span>
                 </div>
                 <div class="text-caption text-grey-7">
