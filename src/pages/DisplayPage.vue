@@ -90,6 +90,7 @@
             <span v-if="entry.row.locked_partner_name" class="display-pair-tag display-pair-tag--podium">
               <q-icon name="eva-link-outline" />{{ entry.row.locked_partner_name }}
             </span>
+            <GroupChip v-if="entry.row.play_group_id" :group="groupOf(entry.row.play_group_id)" size="md" dark />
             <div class="display-podium-record">{{ entry.row.wins }}–{{ entry.row.losses }}</div>
             <div class="display-podium-step" :style="{ height: `${entry.step}px` }">
               {{ entry.place }}
@@ -104,6 +105,7 @@
             <span v-if="row.locked_partner_name" class="display-pair-tag">
               <q-icon name="eva-link-outline" />{{ row.locked_partner_name }}
             </span>
+            <GroupChip v-if="row.play_group_id" :group="groupOf(row.play_group_id)" size="md" dark />
             <span class="display-final-record">{{ row.wins }}–{{ row.losses }}</span>
           </div>
         </div>
@@ -124,13 +126,12 @@
           >
             <div class="display-court-head">
               <span class="display-court-label">{{ court.label }}</span>
+              <GroupChip v-if="court.play_group_id" :group="groupOf(court.play_group_id)" size="lg" dark />
+              <span v-else-if="hasGroups" class="display-open-tag">Open</span>
               <span v-if="onDeck" class="display-ondeck-badge">
                 <q-icon name="eva-arrow-circle-right-outline" />On deck
               </span>
-              <span v-else class="display-court-status">
-                <i class="display-dot" :class="`display-dot--${court.status}`" />
-                {{ courtStatusLabel(court.status) }}
-              </span>
+              <span v-else class="display-court-status" :class="`display-court-status--${court.status}`">{{ courtStatusLabel(court.status) }}</span>
               <!-- Ticks on its own; the board itself doesn't re-render each second. -->
               <CourtTimer
                 v-if="match?.status === 'playing' && match.started_at"
@@ -155,7 +156,12 @@
                         class="display-team-link"
                         title="Locked partners"
                       />
-                      <span v-else-if="i > 0"> + </span>{{ slot.display_name }}
+                      <span v-else-if="i > 0"> + </span>{{ slot.display_name }}<GroupChip
+                        v-if="slot.play_group_id && slot.play_group_id !== court.play_group_id"
+                        :group="groupOf(slot.play_group_id)"
+                        compact
+                        class="q-ml-xs"
+                      />
                     </template>
                   </div>
                 </div>
@@ -185,6 +191,7 @@
                 <span v-if="partnerNameOf(entry.player_id)" class="display-pair-tag">
                   <q-icon name="eva-link-outline" />{{ partnerNameOf(entry.player_id) }}
                 </span>
+                <GroupChip v-if="groupOfPlayer(entry.player_id)" :group="groupOfPlayer(entry.player_id)" dark />
                 <span class="display-queue-wait">{{
                   formatSeconds(entry.effective_wait_seconds)
                 }}</span>
@@ -205,6 +212,7 @@
                 <span v-if="partnerNameOf(entry.player_id)" class="display-pair-tag">
                   <q-icon name="eva-link-outline" />{{ partnerNameOf(entry.player_id) }}
                 </span>
+                <GroupChip v-if="groupOfPlayer(entry.player_id)" :group="groupOfPlayer(entry.player_id)" dark />
                 <span class="display-queue-wait">{{
                   formatSeconds(entry.effective_wait_seconds)
                 }}</span>
@@ -215,18 +223,28 @@
           </div>
 
           <template v-else>
-            <div v-for="entry in queueRows" :key="entry.player_id" class="display-queue-row">
-              <span class="display-queue-pos">{{ entry.position }}</span>
-              <span class="display-queue-name">{{ nameOf(entry.player_id) }}</span>
-              <span v-if="partnerNameOf(entry.player_id)" class="display-pair-tag">
-                <q-icon name="eva-link-outline" />{{ partnerNameOf(entry.player_id) }}
-              </span>
-              <span class="display-queue-wait">{{
-                formatSeconds(entry.effective_wait_seconds)
-              }}</span>
+            <!-- Court segregation: one lane per group, numbered within it. -->
+            <div v-for="lane in queueLanes" :key="lane.key" class="display-lane">
+              <div v-if="queueLanes.length > 1 || lane.group" class="display-lane-head">
+                <GroupChip v-if="lane.group" :group="lane.group" size="lg" dark />
+                <span v-else class="display-open-tag">Open courts</span>
+                <span class="display-lane-courts">{{ lane.courtsLabel }}</span>
+              </div>
+              <div v-for="entry in lane.rows" :key="entry.player_id" class="display-queue-row">
+                <span class="display-queue-pos">{{ entry.position }}</span>
+                <span class="display-queue-name">{{ nameOf(entry.player_id) }}</span>
+                <span v-if="partnerNameOf(entry.player_id)" class="display-pair-tag">
+                  <q-icon name="eva-link-outline" />{{ partnerNameOf(entry.player_id) }}
+                </span>
+                <!-- Open lane can hold a group without courts: show it. -->
+                <GroupChip v-if="!lane.group && groupOfPlayer(entry.player_id)" :group="groupOfPlayer(entry.player_id)" dark />
+                <span class="display-queue-wait">{{
+                  formatSeconds(entry.effective_wait_seconds)
+                }}</span>
+              </div>
+              <div v-if="lane.total > lane.rows.length" class="display-sub q-mt-xs">+{{ lane.total - lane.rows.length }} more</div>
             </div>
-            <div v-if="!queueRows.length" class="display-sub q-mt-md">Queue is empty</div>
-            <div v-else-if="queueTotal > queueRows.length" class="display-sub q-mt-sm">+{{ queueTotal - queueRows.length }} more waiting</div>
+            <div v-if="!queueTotal" class="display-sub q-mt-md">Queue is empty</div>
           </template>
         </aside>
       </main>
@@ -243,6 +261,7 @@ import { useRoute } from 'vue-router'
 import logoUrl from 'src/assets/logo.png'
 import { getDisplayState } from 'src/api/openPlay'
 import CourtTimer from 'src/components/CourtTimer.vue'
+import GroupChip from 'src/components/GroupChip.vue'
 import DisplayPromo from 'src/components/DisplayPromo.vue'
 import VoiceSettingsSheet from 'src/components/VoiceSettingsSheet.vue'
 import { useAnnouncer, useCallAnnouncer } from 'src/composables/useAnnouncer'
@@ -281,8 +300,44 @@ const finalRest = computed(() => {
 })
 let qrDrawn = false
 
-const queueRows = computed(() => (state.value?.queue || []).slice(0, 12))
 const queueTotal = computed(() => (state.value?.queue || []).length)
+
+// ——— Court segregation groups ———
+const groupsById = computed(() => new Map((state.value?.groups || []).map((g) => [g.id, g])))
+const hasGroups = computed(() => groupsById.value.size > 0)
+function groupOf(id) {
+  return id ? groupsById.value.get(id) || null : null
+}
+function groupOfPlayer(playerId) {
+  return groupOf(playersById.value.get(playerId)?.play_group_id)
+}
+// Lanes follow the server's `lane` per entry ("g<id>" or "open"); 12 rows
+// shared across lanes so the board never overflows.
+const queueLanes = computed(() => {
+  const all = state.value?.queue || []
+  const lanes = new Map()
+  for (const e of all) {
+    const key = e.lane || 'open'
+    if (!lanes.has(key)) lanes.set(key, [])
+    lanes.get(key).push(e)
+  }
+  const courts = (state.value?.courts || []).filter((c) => !['closed', 'maintenance'].includes(c.status))
+  const reserved = new Set(courts.map((c) => c.play_group_id).filter(Boolean))
+  const perLane = Math.max(4, Math.floor(12 / Math.max(1, lanes.size)))
+  return [...lanes.entries()]
+    .map(([key, rows]) => {
+      const gid = key === 'open' ? null : Number(key.slice(1))
+      const laneCourts = courts.filter((c) => (gid ? c.play_group_id === gid : !c.play_group_id || !reserved.has(c.play_group_id)))
+      return {
+        key,
+        group: groupOf(gid),
+        courtsLabel: laneCourts.map((c) => c.label).join(', '),
+        rows: rows.slice(0, perLane),
+        total: rows.length,
+      }
+    })
+    .sort((a, b) => (a.group?.sort_order ?? 9999) - (b.group?.sort_order ?? 9999))
+})
 
 const activeMatchesById = computed(
   () => new Map((state.value?.matches?.active || []).map((m) => [m.id, m])),
@@ -432,7 +487,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /* Brand dark-teal board. Same design language as the app: one surface style
-   (hairline borders, soft radius), status dots, hairline vs divider. */
+   (hairline borders, soft radius), status pills, hairline vs divider. */
 .display-root {
   min-height: 100vh;
   background: #0c2b23;
@@ -702,35 +757,20 @@ onBeforeUnmount(() => {
 .display-court-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
   font-size: clamp(11px, 1.1vw, 13px);
-  font-weight: 600;
-  color: #8fb5a9;
+  font-weight: 700;
+  color: #cfe3dc;
+  background: rgba(255, 255, 255, 0.08);
 }
-.display-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #47695e;
-}
-.display-dot--playing {
-  background: #4c9aff;
-}
-.display-dot--available {
-  background: #c7f000;
-}
-.display-dot--reserved,
-.display-dot--players_called {
-  background: #f5b93c;
-}
-.display-dot--result_pending {
-  background: #b39ddb;
-}
-
-.display-dot--maintenance,
-.display-dot--closed {
-  background: #f16063;
-}
+.display-court-status--playing { color: #9cc4ff; background: rgba(76, 154, 255, 0.18); }
+.display-court-status--available { color: #c7f000; background: rgba(199, 240, 0, 0.14); }
+.display-court-status--reserved,
+.display-court-status--players_called { color: #f5b93c; background: rgba(245, 185, 60, 0.16); }
+.display-court-status--result_pending { color: #cdbcf0; background: rgba(179, 157, 219, 0.18); }
+.display-court-status--maintenance,
+.display-court-status--closed { color: #f79a9c; background: rgba(241, 96, 99, 0.16); }
 .display-court-timer {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
@@ -821,6 +861,31 @@ onBeforeUnmount(() => {
   color: #8fb5a9;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+.display-lane + .display-lane {
+  margin-top: 14px;
+}
+.display-lane-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 6px;
+}
+.display-lane-courts {
+  color: #8fb5a9;
+  font-size: clamp(12px, 1.1vw, 16px);
+  font-weight: 600;
+}
+.display-open-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  color: #cfe3dc;
+  font-size: clamp(11px, 1.1vw, 15px);
+  font-weight: 700;
+  white-space: nowrap;
 }
 .display-pair-tag {
   display: inline-flex;

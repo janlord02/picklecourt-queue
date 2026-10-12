@@ -45,7 +45,7 @@
 
     <!-- Lead-gen: player surfaces only (never the organizer console/TV).
          Not over the signed-out welcome screen — its CTAs come first. -->
-    <RegisterCourtBanner v-if="!($route.name === 'home' && !auth.isAuthenticated)" />
+    <RegisterCourtBanner v-if="!($route.name === 'home' && !auth.isAuthenticated) && !['privacy', 'delete-account'].includes($route.name)" />
 
     <nav class="bottom-nav" aria-label="Main">
       <router-link

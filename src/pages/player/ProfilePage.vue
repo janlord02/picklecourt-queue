@@ -17,6 +17,7 @@
           label="Create account"
           :to="{ name: 'register' }"
         />
+        <router-link class="text-caption text-grey-6 q-mt-md block" :to="{ name: 'privacy' }">Privacy policy</router-link>
       </div>
 
       <template v-else>
@@ -170,6 +171,11 @@
 
         <div class="text-caption text-center text-grey-5 q-mt-lg">
           PickleCourt Queue · free forever · open play queues &amp; smart matchmaking
+          <div class="q-mt-xs">
+            <router-link class="text-grey-6" :to="{ name: 'privacy' }">Privacy policy</router-link>
+            ·
+            <a class="text-grey-6" href="mailto:support@picklecourt.ph">Contact support</a>
+          </div>
         </div>
 
         <q-dialog v-model="deleteDialog">
@@ -230,7 +236,7 @@
                 <div class="row items-center no-wrap" style="gap: 8px">
                   <span class="text-weight-bold ellipsis">{{ entry.name }}</span>
                   <span v-if="entry.id === playStore.sessionId" class="live-tag">
-                    <i class="live-dot" />Viewing
+                    Viewing
                   </span>
                 </div>
                 <div class="text-caption text-grey-7">

@@ -32,6 +32,9 @@ export const usePlaySessionStore = defineStore('playSession', () => {
   const leaderboard = computed(() => state.value?.leaderboard || [])
   const stats = computed(() => state.value?.stats || {})
   const canManage = computed(() => !!state.value?.can_manage)
+  // Court segregation groups (e.g. Beginner / Novice) and a lookup by id.
+  const groups = computed(() => state.value?.groups || [])
+  const groupsById = computed(() => new Map(groups.value.map((g) => [g.id, g])))
 
   const myPlayer = computed(() => {
     const userId = auth.user?.id
@@ -144,6 +147,8 @@ export const usePlaySessionStore = defineStore('playSession', () => {
     leaderboard,
     stats,
     canManage,
+    groups,
+    groupsById,
     myPlayer,
     myQueueEntry,
     myActiveMatch,

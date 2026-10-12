@@ -4,7 +4,7 @@
     <div v-if="showTakeover && myMatch" class="called-takeover" @click="showTakeover = false">
       <div class="text-h4 text-weight-bolder">You're up! 🎾</div>
       <div v-if="myMatch.court_label" class="text-h5 text-weight-bold takeover-court">{{ myMatch.court_label }}</div>
-      <MatchTeams :match="myMatch" show-ready />
+      <MatchTeams :match="myMatch" :groups-by-id="groupsById" show-ready />
       <q-btn
         class="big-action q-mt-lg full-width"
         style="max-width: 320px"
@@ -82,7 +82,7 @@
             {{ myMatch.status === 'playing' ? 'Playing now' : myMatch.status === 'called' ? "You're up!" : 'Up next' }}
           </div>
           <div v-if="myMatch.court_label" class="text-h5 text-weight-bold q-my-sm">{{ myMatch.court_label }}</div>
-          <MatchTeams :match="myMatch" :show-ready="myMatch.status === 'called'" />
+          <MatchTeams :match="myMatch" :groups-by-id="groupsById" :show-ready="myMatch.status === 'called'" />
           <q-btn
             v-if="myMatch.status === 'called' && !myReady"
             class="big-action full-width q-mt-md"
@@ -98,6 +98,10 @@
         <div v-else-if="myQueue" class="play-card queue-hero q-mb-md">
           <div class="queue-hero-label">You're in the queue</div>
           <div class="queue-hero-number">#{{ myQueue.position }}</div>
+          <div v-if="myGroup" class="q-mt-xs">
+            <GroupChip :group="myGroup" size="md" />
+            <span class="text-caption text-grey-7 q-ml-xs">{{ myGroup.name }} line</span>
+          </div>
           <div class="text-body2 text-grey-8 q-mt-sm">
             {{ formatWaitRange(myQueue.estimated_wait_min_seconds, myQueue.estimated_wait_max_seconds) }}
           </div>
@@ -145,6 +149,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
 import MatchTeams from 'src/components/MatchTeams.vue'
+import GroupChip from 'src/components/GroupChip.vue'
 import SyncStatusBanner from 'src/components/SyncStatusBanner.vue'
 import SkeletonList from 'src/components/SkeletonList.vue'
 import { haptic } from 'src/utils/native'
@@ -172,6 +177,9 @@ const showTakeover = ref(false)
 
 const me = computed(() => data.value?.me || {})
 const myQueue = computed(() => data.value?.my_queue || null)
+// Court segregation group (the guest payload carries the full board state).
+const groupsById = computed(() => new Map((data.value?.groups || []).map((g) => [g.id, g])))
+const myGroup = computed(() => (me.value.play_group_id ? groupsById.value.get(me.value.play_group_id) || null : null))
 const myMatch = computed(() => data.value?.my_match || null)
 const myReady = computed(() => {
   const m = myMatch.value

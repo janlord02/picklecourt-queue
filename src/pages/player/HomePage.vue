@@ -126,7 +126,7 @@
                 <div class="col">
                   <div class="row items-center no-wrap" style="gap: 8px">
                     <span class="text-weight-bold ellipsis">{{ session.name }}</span>
-                    <span v-if="session.status === 'live'" class="live-tag"><i class="live-dot" />Live</span>
+                    <span v-if="session.status === 'live'" class="live-tag">Live</span>
                   </div>
                   <div class="text-caption text-grey-7">{{ sessionMeta(session) }}</div>
                 </div>
@@ -217,7 +217,7 @@
                 <div class="col">
                   <div class="row items-center no-wrap" style="gap: 8px">
                     <span class="text-weight-bold ellipsis">{{ session.name }}</span>
-                    <span v-if="session.status === 'live'" class="live-tag"><i class="live-dot" />Live</span>
+                    <span v-if="session.status === 'live'" class="live-tag">Live</span>
                   </div>
                   <div class="text-caption text-grey-7">
                     {{ session.date }} · {{ statusLabel(session.my_status) }}
@@ -258,10 +258,8 @@
                 <div class="col">
                   <div class="row items-center no-wrap" style="gap: 8px">
                     <span class="text-weight-bold ellipsis">{{ session.name }}</span>
-                    <span v-if="session.status === 'live'" class="live-tag"><i class="live-dot" />Live</span>
-                    <span v-else class="status-tag">
-                      <i class="status-dot dot-waiting" /><span>Open</span>
-                    </span>
+                    <span v-if="session.status === 'live'" class="live-tag">Live</span>
+                    <span v-else class="status-tag dot-waiting">Open</span>
                   </div>
                   <div class="text-caption text-grey-7">{{ sessionMeta(session) }}</div>
                 </div>

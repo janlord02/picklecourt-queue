@@ -21,6 +21,9 @@ const unwrap = (response) => response.data.data
 
 // ——— sessions ———
 export const listSessions = (params) => api.get('/play/sessions', { params }).then(unwrap)
+// Super admin only: every session on the platform → { data, businesses }.
+export const listAllSessions = (params = {}) =>
+  api.get('/play/sessions', { params: { mine: 1, all: 1, ...params } }).then((r) => r.data)
 export const getSession = (id) => api.get(`/play/sessions/${id}`).then(unwrap)
 export const getState = (id) => api.get(`/play/sessions/${id}/state`).then(unwrap)
 export const createSession = (payload) => api.post('/play/sessions', payload).then(unwrap)
@@ -83,6 +86,17 @@ export const updateTeams = (matchId, teamA, teamB, fairness = null) =>
       ...(fairness ? { fairness_ack: true, fairness_reasons: fairness.reasons } : {}),
     })
     .then(unwrap)
+
+// Court segregation groups (organizer-only). Courts and players point at a
+// group via play_group_id (null = open court / no group).
+export const createGroup = (sessionId, payload) =>
+  api.post(`/play/sessions/${sessionId}/groups`, payload).then(unwrap)
+export const updateGroup = (sessionId, groupId, payload) =>
+  api.patch(`/play/sessions/${sessionId}/groups/${groupId}`, payload).then(unwrap)
+export const deleteGroup = (sessionId, groupId) =>
+  api.delete(`/play/sessions/${sessionId}/groups/${groupId}`).then(unwrap)
+export const setPlayerGroup = (sessionId, playerId, groupId) =>
+  api.patch(`/play/sessions/${sessionId}/players/${playerId}`, { play_group_id: groupId }).then(unwrap)
 
 // Partner lock: pass a partner id to link the pair (engine keeps them on the
 // same team), or null to break the lock. No state transition involved.

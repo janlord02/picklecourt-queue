@@ -25,6 +25,7 @@
           <span v-if="entry.row.locked_partner_name" class="pair-tag podium-pair">
             <q-icon name="eva-link-outline" />{{ entry.row.locked_partner_name }}
           </span>
+          <GroupChip v-if="entry.row.play_group_id" :group="groupsById.get(entry.row.play_group_id)" />
           <div class="podium-record tnum">{{ entry.row.wins }}–{{ entry.row.losses }}</div>
           <div class="podium-rate">{{ winRate(entry.row) }}</div>
           <div class="podium-step" :style="{ height: `${entry.step}px` }">{{ entry.place }}</div>
@@ -44,6 +45,7 @@
           <span v-if="row.locked_partner_name" class="pair-tag q-ml-xs">
             <q-icon name="eva-link-outline" />{{ row.locked_partner_name }}
           </span>
+          <GroupChip v-if="row.play_group_id" :group="groupsById.get(row.play_group_id)" class="q-ml-xs" />
         </div>
         <div class="text-caption text-grey-6 tnum">{{ winRate(row) }}</div>
         <div class="record tnum">{{ row.wins }}–{{ row.losses }}</div>
@@ -54,9 +56,12 @@
 
 <script setup>
 import { computed } from 'vue'
+import GroupChip from 'src/components/GroupChip.vue'
 
 const props = defineProps({
   leaderboard: { type: Array, default: () => [] },
+  // Court segregation group lookup (Map id → group).
+  groupsById: { type: Map, default: () => new Map() },
   highlightPlayerId: { type: Number, default: null },
 })
 

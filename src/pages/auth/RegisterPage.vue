@@ -92,6 +92,10 @@
         </q-form>
       </div>
 
+      <div class="auth-note">
+        By creating an account you agree to our
+        <router-link :to="{ name: 'privacy' }">Privacy policy</router-link>.
+      </div>
       <div class="auth-alt">
         Already have an account?
         <router-link :to="{ name: 'login', query: route.query }">Sign in</router-link>

@@ -36,6 +36,8 @@
 import { computed } from 'vue'
 
 const props = defineProps({
+  // Session has court-segregation groups → offer "Set group…".
+  hasGroups: { type: Boolean, default: false },
   player: { type: Object, default: null },
 })
 const emit = defineEmits(['action'])
@@ -94,6 +96,11 @@ const options = computed(() => {
     icon: 'eva-bar-chart-outline',
     caption: props.player?.rating ? `Now ${Number(props.player.rating).toFixed(1)}` : 'Unrated',
   })
+
+  // Court segregation group (handled by the page).
+  if (props.hasGroups && !['checked_out', 'no_show'].includes(status)) {
+    acts.push({ action: 'set_group', label: 'Set group…', icon: 'eva-grid-outline' })
+  }
 
   // Partner lock (handled by the page, not a queue transition): pairs stay
   // on the same team in every generated match until unlocked.
