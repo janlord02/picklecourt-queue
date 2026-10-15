@@ -42,3 +42,27 @@ export function courtStatusLabel(status) {
   }
   return labels[status] || status
 }
+
+// Score sessions show "11–7"; win/loss sessions (no scores) show which side
+// won in the same left/right order as "Team A vs Team B": "W–L" or "L–W".
+export function resultText(match) {
+  if (!match) return ''
+  if (match.team_a_score != null && match.team_b_score != null) {
+    return `${match.team_a_score}–${match.team_b_score}`
+  }
+  if (match.winning_team === 'A') return 'W–L'
+  if (match.winning_team === 'B') return 'L–W'
+  return ''
+}
+
+// Minutes on court: "45m", "1h 05m".
+export function formatMinutes(minutes) {
+  const m = Math.max(0, Math.round(Number(minutes) || 0))
+  if (m < 60) return `${m}m`
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
+}
+
+export const RESULT_MODE_OPTIONS = [
+  { label: 'Win / Loss', value: 'win_loss' },
+  { label: 'Score', value: 'score' },
+]

@@ -381,7 +381,7 @@
                   {{ teamNames(match.team_b) }}
                 </div>
                 <div class="text-weight-bold tnum">
-                  {{ match.team_a_score }}–{{ match.team_b_score }}
+                  {{ resultText(match) }}
                 </div>
                 <q-btn
                   flat
@@ -475,7 +475,7 @@
             outline
             no-caps
             icon="eva-person-add-outline"
-            label="Add player or guest"
+            label="Add players"
             @click="addDialog = true"
           />
           <!-- Search by name + "not checked in" filter, for fast check-in at the door. -->
@@ -539,7 +539,12 @@
 
         <!-- ======================= LEADERBOARD ======================= -->
         <div v-if="tab === 'leaderboard'">
-          <SessionLeaderboard :leaderboard="playStore.leaderboard" :unranked="playStore.leaderboardUnranked" :groups-by-id="playStore.groupsById" />
+          <SessionLeaderboard
+            :leaderboard="playStore.leaderboard"
+            :unranked="playStore.leaderboardUnranked"
+            :groups-by-id="playStore.groupsById"
+            :show-minutes="resultMode === 'win_loss'"
+          />
 
           <span class="section-label">Game log</span>
           <div class="play-card">
@@ -564,7 +569,7 @@
                 </div>
               </div>
               <div class="text-weight-bold tnum">
-                {{ match.team_a_score }}–{{ match.team_b_score }}
+                {{ resultText(match) }}
               </div>
               <q-btn
                 flat
@@ -584,110 +589,102 @@
     </div>
     </q-pull-to-refresh>
 
-    <!-- Score dialog -->
+    <!-- Result dialog: tap the winning team (win/loss sessions) or enter
+         the score (score sessions). -->
     <q-dialog v-model="scoreDialog" position="bottom">
       <q-card class="sheet">
         <q-card-section v-if="scoringMatch" class="q-pa-md">
-          <div class="sheet-title q-mb-md">
-            {{ amending ? 'Edit result' : 'Match result' }}
+          <div class="sheet-title q-mb-xs">
+            {{ amending ? 'Edit result' : 'Who won?' }}
           </div>
-          <div class="row q-col-gutter-md items-end">
-            <!-- mask="##": digits only, two max — fat-finger-proof. Focus
-                 selects the current value so typing replaces the 0. -->
-            <div class="col text-center">
-              <div class="text-caption text-grey-7 q-mb-xs">{{ teamNames(scoringMatch.team_a) }}</div>
-              <q-input
-                v-model="scoreA"
-                outlined
-                mask="##"
-                inputmode="numeric"
-                placeholder="0"
-                input-class="text-center text-h5 tnum"
-                @focus="(evt) => evt.target.select()"
-              />
+
+          <template v-if="!enteringScore">
+            <div class="text-caption text-grey-7 q-mb-md">Tap the team that won.</div>
+            <div class="winner-picks">
+              <button
+                v-for="side in ['A', 'B']"
+                :key="side"
+                type="button"
+                class="winner-pick"
+                :class="{ 'winner-pick--current': amending && scoringMatch.winning_team === side }"
+                :disabled="scoring"
+                @click="saveWinner(side)"
+              >
+                <span class="winner-pick__team">Team {{ side }}</span>
+                <span class="winner-pick__names">{{ teamNames(side === 'A' ? scoringMatch.team_a : scoringMatch.team_b) }}</span>
+                <span class="winner-pick__cta">
+                  <q-spinner v-if="scoring && pickedSide === side" size="18px" />
+                  <template v-else>
+                    <q-icon name="eva-award-outline" size="18px" />
+                    {{ amending && scoringMatch.winning_team === side ? 'Won (current)' : 'Won' }}
+                  </template>
+                </span>
+              </button>
             </div>
-            <div class="col-auto text-h6 text-grey-5 q-pb-sm">–</div>
-            <div class="col text-center">
-              <div class="text-caption text-grey-7 q-mb-xs">{{ teamNames(scoringMatch.team_b) }}</div>
-              <q-input
-                v-model="scoreB"
-                outlined
-                mask="##"
-                inputmode="numeric"
-                placeholder="0"
-                input-class="text-center text-h5 tnum"
-                @focus="(evt) => evt.target.select()"
-              />
+          </template>
+
+          <template v-else>
+            <div class="text-caption text-grey-7 q-mb-md">Enter the final score.</div>
+            <div class="row q-col-gutter-md items-end">
+              <!-- mask="##": digits only, two max — fat-finger-proof. Focus
+                   selects the current value so typing replaces the 0. -->
+              <div class="col text-center">
+                <div class="text-caption text-grey-7 q-mb-xs">{{ teamNames(scoringMatch.team_a) }}</div>
+                <q-input
+                  v-model="scoreA"
+                  outlined
+                  mask="##"
+                  inputmode="numeric"
+                  placeholder="0"
+                  input-class="text-center text-h5 tnum"
+                  @focus="(evt) => evt.target.select()"
+                />
+              </div>
+              <div class="col-auto text-h6 text-grey-5 q-pb-sm">–</div>
+              <div class="col text-center">
+                <div class="text-caption text-grey-7 q-mb-xs">{{ teamNames(scoringMatch.team_b) }}</div>
+                <q-input
+                  v-model="scoreB"
+                  outlined
+                  mask="##"
+                  inputmode="numeric"
+                  placeholder="0"
+                  input-class="text-center text-h5 tnum"
+                  @focus="(evt) => evt.target.select()"
+                />
+              </div>
             </div>
+            <q-btn
+              class="big-action full-width q-mt-md"
+              color="primary"
+              unelevated
+              :label="amending ? 'Save correction' : 'Save result'"
+              :loading="scoring"
+              @click="saveScore"
+            />
+          </template>
+
+          <div class="text-center q-mt-sm">
+            <q-btn
+              flat
+              dense
+              no-caps
+              color="grey-7"
+              :label="enteringScore ? 'Just pick the winner' : 'Enter the score instead'"
+              @click="enteringScore = !enteringScore"
+            />
           </div>
-          <q-btn
-            class="big-action full-width q-mt-md"
-            color="primary"
-            unelevated
-            :label="amending ? 'Save correction' : 'Save result'"
-            :loading="scoring"
-            @click="saveScore"
-          />
         </q-card-section>
       </q-card>
     </q-dialog>
 
-    <!-- Add player dialog -->
-    <q-dialog v-model="addDialog" position="bottom">
-      <q-card class="sheet sheet--tall">
-        <q-card-section class="q-pa-md">
-          <div class="sheet-title q-mb-md">Add player</div>
-          <q-form class="form-stack" @submit.prevent="addWalkIn">
-            <q-input
-              v-model="addForm.display_name"
-              outlined
-              dense
-              label="Name"
-              hide-bottom-space
-              :rules="[(v) => !!v || 'Name is required']"
-            />
-            <q-select
-              v-model="addForm.rating"
-              outlined
-              dense
-              label="Skill level"
-              emit-value
-              map-options
-              :options="RATING_OPTIONS"
-            >
-              <template #option="scope">
-                <q-item v-bind="scope.itemProps">
-                  <q-item-section>
-                    <q-item-label>{{ scope.opt.label }}</q-item-label>
-                    <q-item-label caption>{{ scope.opt.description }}</q-item-label>
-                  </q-item-section>
-                </q-item>
-              </template>
-            </q-select>
-            <q-input v-model="addForm.guest_phone" outlined dense label="Mobile (optional)" />
-            <q-select
-              v-if="playStore.groups.length"
-              v-model="addForm.play_group_id"
-              outlined
-              dense
-              label="Group"
-              emit-value
-              map-options
-              :options="groupOptions"
-            />
-            <q-toggle v-model="addForm.check_in" label="Check in now (enter the queue)" />
-            <q-btn
-              class="big-action full-width"
-              color="primary"
-              unelevated
-              label="Add player"
-              type="submit"
-              :loading="adding"
-            />
-          </q-form>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
+    <!-- Add players: one, a pasted group, or from past sessions -->
+    <AddPlayersSheet
+      v-model="addDialog"
+      :session-id="sessionId"
+      :group-options="playStore.groups.length ? groupOptions : []"
+      @added="refresh"
+    />
 
     <!-- Edit teams: same four players, pick one of the 3 splits -->
     <q-dialog v-model="teamsDialog" position="bottom">
@@ -970,6 +967,24 @@
               type="number"
               label="Max players (optional)"
             />
+            <div>
+              <div class="text-caption text-grey-7 q-mb-xs">Results</div>
+              <q-btn-toggle
+                v-model="editForm.result_mode"
+                spread
+                no-caps
+                unelevated
+                toggle-color="primary"
+                color="grey-2"
+                text-color="grey-9"
+                :options="RESULT_MODE_OPTIONS"
+              />
+              <div class="text-caption text-grey-7 q-mt-xs">
+                {{ editForm.result_mode === 'score'
+                  ? 'Enter each final score. Ties on wins go to point difference.'
+                  : 'Tap the team that won. Ties on wins go to time played.' }}
+              </div>
+            </div>
             <q-toggle
               v-model="editForm.guest_self_join"
               label="Let guests join from the QR (you approve each one)"
@@ -1238,7 +1253,6 @@ import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
 import {
   addCourt,
-  addPlayer,
   callMatch,
   cancelMatch,
   playerAction,
@@ -1276,12 +1290,13 @@ import WhyThisMatch from 'src/components/WhyThisMatch.vue'
 import { useAnnouncer, useCallAnnouncer } from 'src/composables/useAnnouncer'
 import { usePlaySessionRealtime } from 'src/composables/usePlayRealtime'
 import { usePlaySessionStore } from 'src/stores/playSession'
-import { courtStatusLabel, formatSeconds } from 'src/utils/format'
+import { courtStatusLabel, formatSeconds, resultText, RESULT_MODE_OPTIONS } from 'src/utils/format'
 import { FORMAT_OPTIONS } from 'src/utils/formats'
 import { RATING_OPTIONS } from 'src/utils/ratings'
 import { isInWinnersPool } from 'src/utils/pairs'
 import { haptic } from 'src/utils/native'
 import CourtTimer from 'src/components/CourtTimer.vue'
+import AddPlayersSheet from 'src/components/AddPlayersSheet.vue'
 import SkeletonList from 'src/components/SkeletonList.vue'
 
 const $q = useQuasar()
@@ -1343,10 +1358,13 @@ const amending = ref(false)
 const scoreA = ref('0')
 const scoreB = ref('0')
 const scoring = ref(false)
+// Score input for this result (score sessions, or a game that has a score).
+const enteringScore = ref(false)
+const pickedSide = ref(null)
+// Session setting: 'win_loss' (default — tap who won) or 'score'.
+const resultMode = computed(() => (playStore.session?.settings?.result_mode === 'score' ? 'score' : 'win_loss'))
 const addDialog = ref(false)
-const adding = ref(false)
 
-const addForm = reactive({ display_name: '', rating: 3.5, guest_phone: '', check_in: true, play_group_id: null })
 
 const sessionId = Number(route.params.id)
 
@@ -1640,6 +1658,7 @@ const editForm = reactive({
   max_players: null,
   guest_self_join: true,
   rank_locked_pairs: false,
+  result_mode: 'win_loss',
 })
 
 // ——— Hosts / co-organizer invitations ———
@@ -1714,6 +1733,7 @@ function openEditSession() {
   editForm.max_players = session.max_players || null
   editForm.guest_self_join = session.settings?.guest_self_join !== false
   editForm.rank_locked_pairs = !!session.settings?.rank_locked_pairs
+  editForm.result_mode = session.settings?.result_mode === 'score' ? 'score' : 'win_loss'
   editDialog.value = true
 }
 
@@ -1749,7 +1769,11 @@ async function doSaveSession() {
       format: editForm.format,
       max_players: editForm.max_players || null,
       // config is merged server-side — send only what this form owns.
-      config: { guest_self_join: !!editForm.guest_self_join, rank_locked_pairs: !!editForm.rank_locked_pairs },
+      config: {
+        guest_self_join: !!editForm.guest_self_join,
+        rank_locked_pairs: !!editForm.rank_locked_pairs,
+        result_mode: editForm.result_mode,
+      },
     })
     editDialog.value = false
     await refresh()
@@ -2426,6 +2450,8 @@ function confirmCancelStaged(match) {
 function openScoreDialog(match, isAmend = false) {
   scoringMatch.value = match
   amending.value = isAmend
+  pickedSide.value = null
+  enteringScore.value = resultMode.value === 'score' || (isAmend && match.team_a_score != null)
   scoreA.value = isAmend ? String(match.team_a_score ?? 0) : '0'
   scoreB.value = isAmend ? String(match.team_b_score ?? 0) : '0'
   scoreDialog.value = true
@@ -2442,15 +2468,39 @@ async function saveScore() {
   scoring.value = true
   try {
     if (amending.value) {
-      await amendMatch(scoringMatch.value.id, a, b)
+      await amendMatch(scoringMatch.value.id, { team_a_score: a, team_b_score: b })
     } else {
-      await scoreMatch(scoringMatch.value.id, a, b)
+      await scoreMatch(scoringMatch.value.id, { team_a_score: a, team_b_score: b })
     }
     haptic('success')
     scoreDialog.value = false
     await refresh()
   } catch (e) {
     notifyError(e, 'Could not save the score')
+  } finally {
+    scoring.value = false
+  }
+}
+
+async function saveWinner(side) {
+  // Re-tapping the current winner on an edit changes nothing.
+  if (amending.value && scoringMatch.value.winning_team === side && scoringMatch.value.team_a_score == null) {
+    scoreDialog.value = false
+    return
+  }
+  pickedSide.value = side
+  scoring.value = true
+  try {
+    if (amending.value) {
+      await amendMatch(scoringMatch.value.id, { winner: side })
+    } else {
+      await scoreMatch(scoringMatch.value.id, { winner: side })
+    }
+    haptic('success')
+    scoreDialog.value = false
+    await refresh()
+  } catch (e) {
+    notifyError(e, 'Could not save the result')
   } finally {
     scoring.value = false
   }
@@ -2564,21 +2614,6 @@ async function onPlayerAction({ player, action, extra }) {
   await run()
 }
 
-async function addWalkIn() {
-  adding.value = true
-  try {
-    await addPlayer(sessionId, { ...addForm })
-    addDialog.value = false
-    addForm.display_name = ''
-    addForm.guest_phone = ''
-    await refresh()
-  } catch (e) {
-    notifyError(e, 'Could not add player')
-  } finally {
-    adding.value = false
-  }
-}
-
 async function setCourtStatus(court, status) {
   try {
     await updateCourt(sessionId, court.id, { status })
@@ -2650,6 +2685,68 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* Win/loss result: two big tap targets, one per team. */
+.winner-picks {
+  display: grid;
+  gap: 10px;
+}
+.winner-pick {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--line, #e3e8e6);
+  border-radius: 14px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.1s ease;
+}
+.winner-pick:hover:not(:disabled) {
+  border-color: var(--q-primary);
+}
+.winner-pick:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.winner-pick:focus-visible {
+  outline: 2px solid var(--q-primary);
+  outline-offset: 2px;
+}
+.winner-pick:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.winner-pick--current {
+  border-color: var(--q-positive);
+  background: rgba(33, 186, 69, 0.06);
+}
+.winner-pick__team {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a9893;
+}
+.winner-pick__names {
+  font-weight: 600;
+  line-height: 1.3;
+}
+.winner-pick__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--q-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
 /* Session info + actions. Phones: info on its own line, actions below
    (they used to squeeze the code/live tag into a stacked column). */
 .console-head {

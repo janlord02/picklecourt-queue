@@ -39,6 +39,13 @@ export const joinSession = (id, payload = {}) =>
 export const checkIn = (id) => api.post(`/play/sessions/${id}/check-in`).then(unwrap)
 export const addPlayer = (id, payload) =>
   api.post(`/play/sessions/${id}/players`, payload).then(unwrap)
+// Several at once: { players: [{ display_name, user_id?, rating? }], check_in,
+// play_group_id } → { added: [...], skipped: [{ display_name, reason }] }.
+export const bulkAddPlayers = (id, payload) =>
+  api.post(`/play/sessions/${id}/players/bulk`, payload).then(unwrap)
+// People from the organizer's earlier sessions (one row per person).
+export const getPlayerHistory = (id, search = '') =>
+  api.get(`/play/sessions/${id}/player-history`, { params: search ? { search } : {} }).then(unwrap)
 export const playerAction = (id, playerId, action, extra = {}) =>
   api.patch(`/play/sessions/${id}/players/${playerId}`, { action, ...extra }).then(unwrap)
 export const getMyStats = () => api.get('/play/me/stats').then(unwrap)
@@ -59,14 +66,12 @@ export const stageMatch = (id, payload) =>
 export const callMatch = (matchId) => api.post(`/play/matches/${matchId}/call`).then(unwrap)
 export const readyMatch = (matchId) => api.post(`/play/matches/${matchId}/ready`).then(unwrap)
 export const startMatch = (matchId) => api.post(`/play/matches/${matchId}/start`).then(unwrap)
-export const scoreMatch = (matchId, teamAScore, teamBScore) =>
-  api
-    .post(`/play/matches/${matchId}/score`, { team_a_score: teamAScore, team_b_score: teamBScore })
-    .then(unwrap)
-export const amendMatch = (matchId, teamAScore, teamBScore) =>
-  api
-    .post(`/play/matches/${matchId}/amend`, { team_a_score: teamAScore, team_b_score: teamBScore })
-    .then(unwrap)
+// `result`: { team_a_score, team_b_score } (score sessions) or
+// { winner: 'A' | 'B' } (win/loss sessions).
+export const scoreMatch = (matchId, result) =>
+  api.post(`/play/matches/${matchId}/score`, result).then(unwrap)
+export const amendMatch = (matchId, result) =>
+  api.post(`/play/matches/${matchId}/amend`, result).then(unwrap)
 export const cancelMatch = (matchId) => api.post(`/play/matches/${matchId}/cancel`).then(unwrap)
 // `fairness` (optional): { ack: true, reasons: [...] } — acknowledged
 // override warnings, logged server-side to the activity log.

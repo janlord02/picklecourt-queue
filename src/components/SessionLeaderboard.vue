@@ -36,7 +36,7 @@
             </span>
             <GroupChip v-if="!grouped && entry.row.play_group_id" :group="groupsById.get(entry.row.play_group_id)" />
             <div class="podium-record tnum">{{ entry.row.wins }}–{{ entry.row.losses }}</div>
-            <div class="podium-rate">{{ winRate(entry.row) }}</div>
+            <div class="podium-rate">{{ rateLine(entry.row) }}</div>
             <div class="podium-step" :style="{ height: `${entry.step}px` }">{{ entry.place }}</div>
           </div>
         </div>
@@ -56,7 +56,7 @@
             </span>
             <GroupChip v-if="!grouped && row.play_group_id" :group="groupsById.get(row.play_group_id)" class="q-ml-xs" />
           </div>
-          <div class="text-caption text-grey-6 tnum">{{ winRate(row) }}</div>
+          <div class="text-caption text-grey-6 tnum">{{ rateLine(row) }}</div>
           <div class="record tnum">{{ row.wins }}–{{ row.losses }}</div>
         </div>
       </section>
@@ -81,6 +81,7 @@
 import { computed } from 'vue'
 import GroupChip from 'src/components/GroupChip.vue'
 import { standingsSections, podiumOf, unrankedPairs } from 'src/utils/standings'
+import { formatMinutes } from 'src/utils/format'
 
 const props = defineProps({
   leaderboard: { type: Array, default: () => [] },
@@ -89,6 +90,8 @@ const props = defineProps({
   highlightPlayerId: { type: Number, default: null },
   // Locked pairs left out of the winners (state.leaderboard_unranked).
   unranked: { type: Array, default: () => [] },
+  // Win/loss sessions: show time on court — it breaks ties on the record.
+  showMinutes: { type: Boolean, default: false },
 })
 
 // Winners per court group when the session uses groups.
@@ -96,6 +99,12 @@ const sections = computed(() => standingsSections(props.leaderboard, [...props.g
 const grouped = computed(() => sections.value.length > 1 || !!sections.value[0]?.group || !!sections.value[0]?.ungrouped)
 const restOf = (rows) => rows.slice(podiumOf(rows) ? 3 : 0)
 const pairs = computed(() => unrankedPairs(props.unranked))
+
+function rateLine(row) {
+  const rate = winRate(row)
+  if (!props.showMinutes || !row.games_played) return rate
+  return `${rate} · ${formatMinutes(row.minutes_played)}`
+}
 
 function winRate(row) {
   if (!row.games_played) return ''
