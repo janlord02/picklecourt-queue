@@ -30,6 +30,8 @@ export const usePlaySessionStore = defineStore('playSession', () => {
   const activeMatches = computed(() => state.value?.matches?.active || [])
   const recentMatches = computed(() => state.value?.matches?.recent || [])
   const leaderboard = computed(() => state.value?.leaderboard || [])
+  // Locked pairs that played but aren't ranked (session setting off).
+  const leaderboardUnranked = computed(() => state.value?.leaderboard_unranked || [])
   const stats = computed(() => state.value?.stats || {})
   const canManage = computed(() => !!state.value?.can_manage)
   // Court segregation groups (e.g. Beginner / Novice) and a lookup by id.
@@ -145,6 +147,7 @@ export const usePlaySessionStore = defineStore('playSession', () => {
     activeMatches,
     recentMatches,
     leaderboard,
+    leaderboardUnranked,
     stats,
     canManage,
     groups,

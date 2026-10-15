@@ -539,7 +539,7 @@
 
         <!-- ======================= LEADERBOARD ======================= -->
         <div v-if="tab === 'leaderboard'">
-          <SessionLeaderboard :leaderboard="playStore.leaderboard" :groups-by-id="playStore.groupsById" />
+          <SessionLeaderboard :leaderboard="playStore.leaderboard" :unranked="playStore.leaderboardUnranked" :groups-by-id="playStore.groupsById" />
 
           <span class="section-label">Game log</span>
           <div class="play-card">
@@ -975,6 +975,14 @@
               label="Let guests join from the QR (you approve each one)"
               class="q-mb-sm"
             />
+            <q-toggle
+              v-model="editForm.rank_locked_pairs"
+              label="Include locked partners in the winners"
+              class="q-mb-xs"
+            />
+            <div class="text-caption text-grey-7 q-mb-sm" style="margin-top: -4px; padding-left: 52px">
+              Off: players with a locked partner are listed as "not ranked" and can't win.
+            </div>
             <q-btn
               class="big-action full-width"
               color="primary"
@@ -1631,6 +1639,7 @@ const editForm = reactive({
   format: 'smart',
   max_players: null,
   guest_self_join: true,
+  rank_locked_pairs: false,
 })
 
 // ——— Hosts / co-organizer invitations ———
@@ -1704,6 +1713,7 @@ function openEditSession() {
   editForm.format = session.format
   editForm.max_players = session.max_players || null
   editForm.guest_self_join = session.settings?.guest_self_join !== false
+  editForm.rank_locked_pairs = !!session.settings?.rank_locked_pairs
   editDialog.value = true
 }
 
@@ -1739,7 +1749,7 @@ async function doSaveSession() {
       format: editForm.format,
       max_players: editForm.max_players || null,
       // config is merged server-side — send only what this form owns.
-      config: { guest_self_join: !!editForm.guest_self_join },
+      config: { guest_self_join: !!editForm.guest_self_join, rank_locked_pairs: !!editForm.rank_locked_pairs },
     })
     editDialog.value = false
     await refresh()

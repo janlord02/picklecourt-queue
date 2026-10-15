@@ -78,39 +78,54 @@
       <main v-if="sessionEnded" class="display-final">
         <div class="display-final-title">Final standings</div>
 
-        <div v-if="finalPodium" class="display-podium">
-          <div
-            v-for="entry in finalPodium"
-            :key="entry.row.player_id"
-            class="display-podium-col"
-            :class="{ 'display-podium-col--first': entry.place === 1 }"
-          >
-            <div class="display-podium-medal">{{ entry.medal }}</div>
-            <div class="display-podium-name">{{ entry.row.display_name }}</div>
-            <span v-if="entry.row.locked_partner_name" class="display-pair-tag display-pair-tag--podium">
-              <q-icon name="eva-link-outline" />{{ entry.row.locked_partner_name }}
-            </span>
-            <GroupChip v-if="entry.row.play_group_id" :group="groupOf(entry.row.play_group_id)" size="md" dark />
-            <div class="display-podium-record">{{ entry.row.wins }}–{{ entry.row.losses }}</div>
-            <div class="display-podium-step" :style="{ height: `${entry.step}px` }">
-              {{ entry.place }}
+        <!-- With court groups: one column per group, each with its own winners. -->
+        <div class="display-final-sections" :class="{ 'display-final-sections--grouped': finalGrouped }">
+          <section v-for="sec in finalSections" :key="sec.key" class="display-final-section">
+            <div v-if="finalGrouped" class="display-final-group">
+              <GroupChip v-if="sec.group" :group="sec.group" size="lg" dark />
+              <span v-else class="display-final-group-none">No group</span>
             </div>
-          </div>
+
+            <div v-if="sec.podium" class="display-podium">
+              <div
+                v-for="entry in sec.podium"
+                :key="entry.row.player_id"
+                class="display-podium-col"
+                :class="{ 'display-podium-col--first': entry.place === 1 }"
+              >
+                <div class="display-podium-medal">{{ entry.medal }}</div>
+                <div class="display-podium-name">{{ entry.row.display_name }}</div>
+                <span v-if="entry.row.locked_partner_name" class="display-pair-tag display-pair-tag--podium">
+                  <q-icon name="eva-link-outline" />{{ entry.row.locked_partner_name }}
+                </span>
+                <GroupChip v-if="!finalGrouped && entry.row.play_group_id" :group="groupOf(entry.row.play_group_id)" size="md" dark />
+                <div class="display-podium-record">{{ entry.row.wins }}–{{ entry.row.losses }}</div>
+                <div class="display-podium-step" :style="{ height: `${entry.step}px` }">
+                  {{ entry.place }}
+                </div>
+              </div>
+            </div>
+
+            <div v-if="sec.rest.length" class="display-final-list">
+              <div v-for="(row, i) in sec.rest" :key="row.player_id" class="display-final-row">
+                <span class="display-final-rank">{{ i + (sec.podium ? 4 : 1) }}</span>
+                <span class="display-final-name">{{ row.display_name }}</span>
+                <span v-if="row.locked_partner_name" class="display-pair-tag">
+                  <q-icon name="eva-link-outline" />{{ row.locked_partner_name }}
+                </span>
+                <GroupChip v-if="!finalGrouped && row.play_group_id" :group="groupOf(row.play_group_id)" size="md" dark />
+                <span class="display-final-record">{{ row.wins }}–{{ row.losses }}</span>
+              </div>
+            </div>
+          </section>
         </div>
 
-        <div v-if="finalRest.length" class="display-final-list">
-          <div v-for="(row, i) in finalRest" :key="row.player_id" class="display-final-row">
-            <span class="display-final-rank">{{ i + (finalPodium ? 4 : 1) }}</span>
-            <span class="display-final-name">{{ row.display_name }}</span>
-            <span v-if="row.locked_partner_name" class="display-pair-tag">
-              <q-icon name="eva-link-outline" />{{ row.locked_partner_name }}
-            </span>
-            <GroupChip v-if="row.play_group_id" :group="groupOf(row.play_group_id)" size="md" dark />
-            <span class="display-final-record">{{ row.wins }}–{{ row.losses }}</span>
-          </div>
+        <div v-if="finalPairs.length" class="display-final-unranked">
+          <span class="display-final-unranked-label"><q-icon name="eva-link-outline" />Locked pairs · not ranked</span>
+          <span v-for="p in finalPairs" :key="p.key" class="display-final-unranked-pair">{{ p.names }} <b>{{ p.wins }}–{{ p.losses }}</b></span>
         </div>
 
-        <div v-if="!(state.leaderboard || []).length" class="display-final-empty">
+        <div v-if="!(state.leaderboard || []).length && !finalPairs.length" class="display-final-empty">
           No games were recorded this session.
         </div>
       </main>
@@ -256,6 +271,7 @@
 </template>
 
 <script setup>
+import { standingsSections, podiumOf, unrankedPairs } from 'src/utils/standings'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import logoUrl from 'src/assets/logo.png'
@@ -285,19 +301,18 @@ const joinable = computed(() => ['open', 'live'].includes(state.value?.session?.
 // Deleted after we had loaded it (404 on refresh).
 const sessionGone = ref(false)
 const lastUpdated = ref(null)
-const finalPodium = computed(() => {
-  const [first, second, third] = state.value?.leaderboard || []
-  if (!third) return null
-  return [
-    { row: second, place: 2, medal: '🥈', step: 110 },
-    { row: first, place: 1, medal: '🏆', step: 160 },
-    { row: third, place: 3, medal: '🥉', step: 80 },
-  ]
+// Final standings — split per court group (each with its own podium) when
+// the session used groups; one section otherwise.
+const finalSections = computed(() => {
+  const sections = standingsSections(state.value?.leaderboard || [], state.value?.groups || [])
+  const grouped = sections.length > 1 || !!sections[0]?.group || !!sections[0]?.ungrouped
+  return sections.map((sec) => {
+    const podium = podiumOf(sec.rows, grouped ? [74, 104, 56] : [110, 160, 80])
+    return { ...sec, podium, rest: sec.rows.slice(podium ? 3 : 0) }
+  })
 })
-const finalRest = computed(() => {
-  const rows = state.value?.leaderboard || []
-  return rows.slice(finalPodium.value ? 3 : 0)
-})
+const finalPairs = computed(() => unrankedPairs(state.value?.leaderboard_unranked || []))
+const finalGrouped = computed(() => finalSections.value.length > 1 || !!finalSections.value[0]?.group || !!finalSections.value[0]?.ungrouped)
 let qrDrawn = false
 
 const queueTotal = computed(() => (state.value?.queue || []).length)
@@ -673,6 +688,55 @@ onBeforeUnmount(() => {
   color: #c7f000;
 }
 
+.display-final-unranked {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px 22px;
+  margin-top: 26px;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.7);
+}
+.display-final-unranked-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+.display-final-unranked-pair b {
+  color: #fff;
+  margin-left: 4px;
+}
+.display-final-sections--grouped {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 28px;
+  align-items: start;
+}
+.display-final-sections--grouped .display-final-section {
+  padding: 18px 20px 20px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.display-final-group {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.display-final-group-none {
+  font-size: 22px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.75);
+}
+.display-final-sections--grouped .display-podium-medal { font-size: 34px; }
+.display-final-sections--grouped .display-podium-col--first .display-podium-medal { font-size: 46px; }
+.display-final-sections--grouped .display-podium-name { font-size: 20px; }
 .display-final-list {
   background: #113329;
   border-radius: 16px;
