@@ -65,6 +65,7 @@
           :unranked="playStore.leaderboardUnranked"
           :groups-by-id="playStore.groupsById"
           :highlight-player-id="me?.id ?? null"
+          :show-minutes="playStore.session?.result_mode !== 'score'"
         />
 
         <span class="section-label">Recent games</span>
@@ -76,15 +77,15 @@
           <div v-for="match in playStore.recentMatches" :key="match.id" class="list-row">
             <div class="col">
               <div class="text-caption">
-                <span class="text-weight-bold">{{ teamNames(match.team_a) }}</span>
+                <span :class="match.winning_team === 'A' ? 'text-weight-bold' : 'text-grey-7'">{{ teamNames(match.team_a) }}</span>
                 <span class="text-grey-5"> vs </span>
-                <span class="text-weight-bold">{{ teamNames(match.team_b) }}</span>
+                <span :class="match.winning_team === 'B' ? 'text-weight-bold' : 'text-grey-7'">{{ teamNames(match.team_b) }}</span>
               </div>
               <div class="text-caption text-grey-6">
                 Game {{ match.game_number }} · {{ match.court_label || 'Court' }}
               </div>
             </div>
-            <div class="text-weight-bold tnum">{{ match.team_a_score }}–{{ match.team_b_score }}</div>
+            <div class="text-weight-bold tnum">{{ resultText(match) }}</div>
           </div>
         </div>
       </template>
@@ -134,7 +135,7 @@ import SessionLeaderboard from 'src/components/SessionLeaderboard.vue'
 import { usePlaySessionRealtime } from 'src/composables/usePlayRealtime'
 import { useAuthStore } from 'src/stores/auth'
 import { usePlaySessionStore } from 'src/stores/playSession'
-import { formatSeconds } from 'src/utils/format'
+import { formatSeconds, resultText } from 'src/utils/format'
 
 const auth = useAuthStore()
 const playStore = usePlaySessionStore()

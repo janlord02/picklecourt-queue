@@ -54,11 +54,17 @@
               </div>
               <div class="stat-label">Avg wait</div>
             </div>
-            <div class="stat-tile">
+            <div v-if="summary.result_mode === 'score'" class="stat-tile">
               <div class="stat-value tnum">
                 {{ summary.stats.avg_point_diff !== null ? signed(summary.stats.avg_point_diff) : '—' }}
               </div>
               <div class="stat-label">Avg diff</div>
+            </div>
+            <div v-else class="stat-tile">
+              <div class="stat-value tnum">
+                {{ summary.stats.games_played ? formatMinutes(summary.stats.minutes_played) : '—' }}
+              </div>
+              <div class="stat-label">Time played</div>
             </div>
             <div class="stat-tile">
               <div class="stat-value tnum">{{ formatSeconds(summary.stats.current_wait_seconds) }}</div>
@@ -88,7 +94,7 @@
                 Game {{ game.game_number }} · {{ game.court_label || 'Court' }}
               </div>
             </div>
-            <div class="text-weight-bold tnum">{{ game.my_score }}–{{ game.opponent_score }}</div>
+            <div v-if="game.my_score !== null" class="text-weight-bold tnum">{{ game.my_score }}–{{ game.opponent_score }}</div>
           </div>
 
           <!-- Variety -->
@@ -129,7 +135,7 @@ import { ratingLevelName, ratingSourceLabel } from 'src/utils/ratings'
 import { computed, ref, watch } from 'vue'
 import { getPlayerSummary } from 'src/api/openPlay'
 import StatusChip from 'src/components/StatusChip.vue'
-import { formatSeconds } from 'src/utils/format'
+import { formatMinutes, formatSeconds } from 'src/utils/format'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

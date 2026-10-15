@@ -207,6 +207,24 @@
               max="200"
               label="Max players (optional)"
             />
+            <div>
+              <div class="text-caption text-grey-7 q-mb-xs">Results</div>
+              <q-btn-toggle
+                v-model="form.result_mode"
+                spread
+                no-caps
+                unelevated
+                toggle-color="primary"
+                color="grey-2"
+                text-color="grey-9"
+                :options="RESULT_MODE_OPTIONS"
+              />
+              <div class="text-caption text-grey-7 q-mt-xs">
+                {{ form.result_mode === 'score'
+                  ? 'Enter each final score. Ties on wins go to point difference.'
+                  : 'Tap the team that won. Ties on wins go to time played.' }}
+              </div>
+            </div>
             <q-select
               v-if="organizeAsOptions.length > 1"
               v-model="form.organizeAs"
@@ -242,6 +260,7 @@ import { computed } from 'vue'
 import { createSession, duplicateSession, getOrganizerContext, listAllSessions, listSessions } from 'src/api/openPlay'
 import { useAuthStore } from 'src/stores/auth'
 import { FORMAT_OPTIONS } from 'src/utils/formats'
+import { RESULT_MODE_OPTIONS } from 'src/utils/format'
 import { validateSessionForm } from 'src/utils/sessionForm'
 import { haptic } from 'src/utils/native'
 import SkeletonList from 'src/components/SkeletonList.vue'
@@ -273,6 +292,7 @@ const form = reactive({
   format: 'smart',
   courtCount: 4,
   max_players: null,
+  result_mode: 'win_loss',
 })
 
 // Who can I organize for? Businesses I staff + my clubs' APPROVED venue
@@ -480,12 +500,13 @@ async function create() {
       format: form.format,
       max_players: form.max_players || null,
       courts: Array.from({ length: form.courtCount }, (_, i) => ({ label: `Court ${i + 1}` })),
+      config: { result_mode: form.result_mode },
     }
     const session = await createSession(payload)
     haptic('success')
     createDialog.value = false
     // Fresh form next time (keep the organizer choice).
-    Object.assign(form, { name: '', date: todayYmd(), start_time: '18:00', end_time: '22:00', format: 'smart', courtCount: 4, max_players: null })
+    Object.assign(form, { name: '', date: todayYmd(), start_time: '18:00', end_time: '22:00', format: 'smart', courtCount: 4, max_players: null, result_mode: 'win_loss' })
     $q.notify({ message: `${session.name} created — code ${session.join_code}`, color: 'positive' })
     router.push({ name: 'organizer-live', params: { id: session.id } })
   } catch (e) {
