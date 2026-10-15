@@ -24,8 +24,10 @@
               <div class="row items-center" style="gap: 8px">
                 <StatusChip :status="summary.player.status" />
                 <span v-if="summary.player.rating" class="text-caption text-grey-7">
-                  {{ summary.player.rating.toFixed(1) }} ({{ summary.player.rating_source }})
+                  <span class="text-weight-bold text-grey-9">{{ summary.player.rating.toFixed(1) }} · {{ ratingLevelName(summary.player.rating) }}</span>
+                  <template v-if="ratingSourceLabel(summary.player.rating_source)"> · {{ ratingSourceLabel(summary.player.rating_source) }}</template>
                 </span>
+                <span v-else class="text-caption text-grey-6">Not rated yet</span>
               </div>
             </div>
           </div>
@@ -123,6 +125,7 @@
 </template>
 
 <script setup>
+import { ratingLevelName, ratingSourceLabel } from 'src/utils/ratings'
 import { computed, ref, watch } from 'vue'
 import { getPlayerSummary } from 'src/api/openPlay'
 import StatusChip from 'src/components/StatusChip.vue'

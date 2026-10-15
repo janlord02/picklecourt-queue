@@ -62,6 +62,8 @@
         <span class="section-label">Leaderboard</span>
         <SessionLeaderboard
           :leaderboard="playStore.leaderboard"
+          :unranked="playStore.leaderboardUnranked"
+          :groups-by-id="playStore.groupsById"
           :highlight-player-id="me?.id ?? null"
         />
 
