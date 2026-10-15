@@ -1,7 +1,7 @@
 <template>
   <!-- Share how to join: QR (scan from another phone or print), the join
        link (copy / native share sheet) and the code. -->
-  <q-dialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)">
+  <q-dialog :model-value="modelValue" @update:model-value="emit('update:modelValue', $event)" @show="drawQr">
     <q-card style="width: 360px; max-width: 94vw; border-radius: 18px">
       <q-card-section class="row items-center no-wrap q-pb-none">
         <div class="col text-subtitle1 text-weight-bold">Invite players</div>
@@ -41,14 +41,14 @@ const qrCanvas = ref(null)
 const joinUrl = computed(() => joinUrlFor(props.code))
 const canShare = typeof navigator !== 'undefined' && !!navigator.share
 
-watch(
-  () => props.modelValue,
-  async (open) => {
-    if (!open) return
-    await nextTick()
-    if (qrCanvas.value) QRCode.toCanvas(qrCanvas.value, joinUrl.value, { width: 220, margin: 1 })
-  },
-)
+// q-dialog only mounts its content once it starts showing, so the canvas
+// isn't there yet when `modelValue` flips to true. Draw whenever the canvas
+// appears (or the code changes), and again on @show as a safety net.
+function drawQr() {
+  if (!qrCanvas.value || !props.code) return
+  QRCode.toCanvas(qrCanvas.value, joinUrl.value, { width: 220, margin: 1 }).catch(() => {})
+}
+watch([qrCanvas, joinUrl], () => nextTick(drawQr))
 
 async function copy() {
   try {

@@ -38,3 +38,16 @@ export const RATING_OPTIONS = [
     description: 'Tournament-level play',
   },
 ]
+
+/** Skill level name for a rating, e.g. 2.0 → "Beginner", 3.9 → "Intermediate". */
+export function ratingLevelName(rating) {
+  if (rating == null) return ''
+  const r = Number(rating)
+  const level = [...RATING_OPTIONS].reverse().find((o) => r >= o.value) || RATING_OPTIONS[0]
+  return level.label.split('·')[1]?.trim() || ''
+}
+
+/** Who set a player's rating, in plain words. */
+export function ratingSourceLabel(source) {
+  return { self: 'self-rated', organizer: 'set by organizer', system: 'estimated' }[source] || ''
+}
