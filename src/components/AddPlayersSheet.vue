@@ -64,7 +64,8 @@
             type="textarea"
             autogrow
             label="Names — one per line"
-            :placeholder="'Janlord Luga\nIvy Dawn Luga\nJamil Badong\nJoshua Pascua'"
+            stack-label
+            :placeholder="SAMPLE_NAMES.join('\n')"
             input-style="min-height: 132px"
             hide-bottom-space
           />
@@ -187,6 +188,9 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue', 'added'])
 const $q = useQuasar()
+
+// Example list shown in the empty Group box (placeholder).
+const SAMPLE_NAMES = ['Juan Dela Cruz', 'Maria Santos', 'Pedro Penduko', 'Ana Reyes']
 
 const GROUP_RATING_OPTIONS = [{ label: 'Not set — rate later', value: null }, ...RATING_OPTIONS]
 
