@@ -63,6 +63,7 @@
         <SessionLeaderboard
           :leaderboard="playStore.leaderboard"
           :unranked="playStore.leaderboardUnranked"
+          :left="playStore.leaderboardLeft"
           :groups-by-id="playStore.groupsById"
           :highlight-player-id="me?.id ?? null"
           :show-minutes="playStore.session?.result_mode !== 'score'"

@@ -6,6 +6,8 @@ first.
 
 ## 2026-10
 
+- **Players who left aren't winners** — anyone who played but then **checked out**, got **injured** or was marked **no-show** drops out of the standings and podiums (Board tab, player Stats, TV final standings, recap image) and is listed under **"Left the session · not ranked"** with their record and group. Check them in again and they're ranked again. Store exposes `leaderboardLeft`; `SessionLeaderboard` gets a `left` prop.
+
 - **Group add shows example names** — the empty "Names — one per line" box now shows a sample list (Juan Dela Cruz, Maria Santos, Pedro Penduko, Ana Reyes). The label stays on top (`stack-label`); before, it covered the placeholder until you tapped the box.
 - **Add players: one, a group, or from history** — the Players tab's **Add players** button opens a sheet with three tabs (new `AddPlayersSheet` component). **One player** is the form as before. **Group**: paste or type names, one per line; it shows "4 players will be added" with a chip for each name, removes repeated names and numbering/bullets copied from chats ("1.", "-", "•"), and lets you set one skill level for everyone (or leave it for later), the group and check-in. **History**: search and tick people from your earlier sessions (name, level, sessions played, last date; anyone already in this session is greyed out), or Select all, then add them in one go with their last skill level (account holders stay linked). Afterwards a notice says how many were added and which were skipped and why (already in the session, session full). New `bulkAddPlayers` / `getPlayerHistory` in `api/openPlay.js`.
 
