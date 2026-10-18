@@ -542,6 +542,7 @@
           <SessionLeaderboard
             :leaderboard="playStore.leaderboard"
             :unranked="playStore.leaderboardUnranked"
+            :left="playStore.leaderboardLeft"
             :groups-by-id="playStore.groupsById"
             :show-minutes="resultMode === 'win_loss'"
           />

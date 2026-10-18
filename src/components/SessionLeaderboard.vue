@@ -1,6 +1,6 @@
 <template>
   <div class="play-card">
-    <div v-if="!leaderboard.length && !pairs.length" class="empty-state">
+    <div v-if="!leaderboard.length && !pairs.length && !left.length" class="empty-state">
       <span class="empty-state-icon"><q-icon name="eva-award-outline" size="28px" /></span>
       <div class="empty-state-title">No completed games yet</div>
       <div class="text-caption">The standings build as results come in.</div>
@@ -73,6 +73,19 @@
           <span class="record tnum">{{ p.wins }}–{{ p.losses }}</span>
         </div>
       </div>
+
+      <!-- Played, then left (checked out / injured / no-show): not winners. -->
+      <div v-if="left.length" class="lb-unranked">
+        <div class="lb-unranked-head">
+          <q-icon name="eva-log-out-outline" size="15px" />
+          Left the session · not ranked
+        </div>
+        <div v-for="row in left" :key="row.player_id" class="lb-unranked-row">
+          <span class="col">{{ row.display_name }}</span>
+          <GroupChip v-if="row.play_group_id" :group="groupsById.get(row.play_group_id)" class="q-mr-sm" />
+          <span class="record tnum">{{ row.wins }}–{{ row.losses }}</span>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -90,6 +103,8 @@ const props = defineProps({
   highlightPlayerId: { type: Number, default: null },
   // Locked pairs left out of the winners (state.leaderboard_unranked).
   unranked: { type: Array, default: () => [] },
+  // Players who played, then left (state.leaderboard_left) — not ranked.
+  left: { type: Array, default: () => [] },
   // Win/loss sessions: show time on court — it breaks ties on the record.
   showMinutes: { type: Boolean, default: false },
 })
