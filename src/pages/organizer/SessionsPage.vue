@@ -225,6 +225,20 @@
                   : 'Tap the team that won. Ties on wins go to time played.' }}
               </div>
             </div>
+            <!-- Same session settings as Edit session. -->
+            <q-toggle
+              v-model="form.guest_self_join"
+              label="Let guests join from the QR (you approve each one)"
+            />
+            <div>
+              <q-toggle
+                v-model="form.rank_locked_pairs"
+                label="Include locked partners in the winners"
+              />
+              <div class="text-caption text-grey-7" style="padding-left: 52px">
+                Off: players with a locked partner are listed as "not ranked" and can't win.
+              </div>
+            </div>
             <q-select
               v-if="organizeAsOptions.length > 1"
               v-model="form.organizeAs"
@@ -293,6 +307,8 @@ const form = reactive({
   courtCount: 4,
   max_players: null,
   result_mode: 'win_loss',
+  guest_self_join: true,
+  rank_locked_pairs: false,
 })
 
 // Who can I organize for? Businesses I staff + my clubs' APPROVED venue
@@ -500,13 +516,17 @@ async function create() {
       format: form.format,
       max_players: form.max_players || null,
       courts: Array.from({ length: form.courtCount }, (_, i) => ({ label: `Court ${i + 1}` })),
-      config: { result_mode: form.result_mode },
+      config: {
+        result_mode: form.result_mode,
+        guest_self_join: !!form.guest_self_join,
+        rank_locked_pairs: !!form.rank_locked_pairs,
+      },
     }
     const session = await createSession(payload)
     haptic('success')
     createDialog.value = false
     // Fresh form next time (keep the organizer choice).
-    Object.assign(form, { name: '', date: todayYmd(), start_time: '18:00', end_time: '22:00', format: 'smart', courtCount: 4, max_players: null, result_mode: 'win_loss' })
+    Object.assign(form, { name: '', date: todayYmd(), start_time: '18:00', end_time: '22:00', format: 'smart', courtCount: 4, max_players: null, result_mode: 'win_loss', guest_self_join: true, rank_locked_pairs: false })
     $q.notify({ message: `${session.name} created — code ${session.join_code}`, color: 'positive' })
     router.push({ name: 'organizer-live', params: { id: session.id } })
   } catch (e) {
