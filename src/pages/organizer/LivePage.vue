@@ -417,7 +417,12 @@
             <span class="text-caption text-grey-7">{{ lane.courtsLabel }} · {{ lane.rows.length }} waiting</span>
           </div>
           <div class="play-card q-mb-md">
-            <div v-for="{ entry, player, partner, pool } in lane.rows" :key="entry.player_id" class="list-row">
+            <template v-for="({ entry, player, partner, pool }, i) in lane.rows" :key="entry.player_id">
+            <!-- Smart: players grouped by the game Smart will call them in. -->
+            <div v-if="gameHeadingAt(lane.rows, i, (r) => r.entry)" class="queue-game-head" :class="{ 'queue-game-head--next': entry.next_game === 1 }">
+              {{ gameHeadingAt(lane.rows, i, (r) => r.entry) }}
+            </div>
+            <div class="list-row">
               <div class="queue-pos">{{ entry.position }}</div>
               <div class="col cursor-pointer" @click="openPlayerDetail(entry.player_id)">
                 <div class="text-weight-bold">
@@ -444,6 +449,7 @@
               </div>
               <PlayerActionMenu v-if="!readOnly" :player="player" :has-groups="playStore.groups.length > 0" @action="onPlayerAction" />
             </div>
+            </template>
           </div>
           </template>
           </template>
@@ -1292,6 +1298,7 @@ import { useAnnouncer, useCallAnnouncer } from 'src/composables/useAnnouncer'
 import { usePlaySessionRealtime } from 'src/composables/usePlayRealtime'
 import { usePlaySessionStore } from 'src/stores/playSession'
 import { courtStatusLabel, formatSeconds, resultText, RESULT_MODE_OPTIONS } from 'src/utils/format'
+import { gameHeadingAt } from 'src/utils/queueGames'
 import { FORMAT_OPTIONS } from 'src/utils/formats'
 import { RATING_OPTIONS } from 'src/utils/ratings'
 import { isInWinnersPool } from 'src/utils/pairs'
@@ -2686,6 +2693,21 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* Smart queue: heading above each planned game ("Next game", "Game 2", …). */
+.queue-game-head {
+  padding: 10px 2px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a9893;
+}
+.queue-game-head--next {
+  color: var(--q-primary);
+}
+.queue-game-head + .list-row {
+  border-top: 0;
+}
 /* Win/loss result: two big tap targets, one per team. */
 .winner-picks {
   display: grid;

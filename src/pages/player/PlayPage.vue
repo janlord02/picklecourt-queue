@@ -108,6 +108,10 @@
         <div v-else-if="me && myQueue" class="play-card queue-hero q-mb-md">
           <div class="queue-hero-label">You're in the queue</div>
           <div class="queue-hero-number">#{{ myQueue.position }}</div>
+          <!-- Smart: the game Smart will call them in. -->
+          <div v-if="myQueue.next_game" class="queue-hero-game" :class="{ 'queue-hero-game--next': myQueue.next_game === 1 }">
+            {{ myQueue.next_game === 1 ? "You're in the next game" : `You're in game ${myQueue.next_game} of your line` }}
+          </div>
           <!-- Court segregation: their number counts their group's line only. -->
           <div v-if="myGroup" class="q-mt-xs">
             <GroupChip :group="myGroup" size="md" />
@@ -523,6 +527,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.queue-hero-game {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #4a5a54;
+}
+.queue-hero-game--next {
+  color: var(--q-primary);
+}
 .alerts-row {
   display: flex;
   align-items: center;

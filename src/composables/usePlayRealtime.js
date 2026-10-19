@@ -5,6 +5,25 @@ import { getEcho, isEchoConnected } from 'src/utils/echoClient'
 // Venue wifi is unreliable: when the socket is down (or Reverb is not
 // configured at all), fall back to polling so screens never silently stale.
 const FALLBACK_POLL_MS = 20000
+// Even with a live socket, refetch about once a minute while the screen is
+// visible: Smart's queue order shifts as wait time passes (its wait-time rules
+// kick in at 10/15/20 minutes) without any action being broadcast.
+const TICKS_PER_REFRESH = 3
+
+function pollTick(onUpdate) {
+  let ticks = 0
+  return () => {
+    if (!isEchoConnected()) {
+      onUpdate({ reason: 'poll' })
+      return
+    }
+    ticks += 1
+    if (ticks >= TICKS_PER_REFRESH) {
+      ticks = 0
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') onUpdate({ reason: 'tick' })
+    }
+  }
+}
 
 /**
  * Courtside phones lock and TVs drop wifi; broadcasts sent meanwhile are lost
@@ -74,9 +93,7 @@ export function usePlaySessionRealtime(sessionIdRef, onUpdate, { debounceMs = 25
   const subscribe = (id) => {
     unsubscribe()
     if (!id) return
-    pollTimer = setInterval(() => {
-      if (!isEchoConnected()) onUpdate({ reason: 'poll' })
-    }, FALLBACK_POLL_MS)
+    pollTimer = setInterval(pollTick(onUpdate), FALLBACK_POLL_MS)
     stopResync = watchResync(debounced)
     const echo = getEcho()
     if (!echo) return
@@ -122,9 +139,7 @@ export function usePlayDisplayRealtime(codeRef, onUpdate, { debounceMs = 250 } =
   const subscribe = (code) => {
     unsubscribe()
     if (!code) return
-    pollTimer = setInterval(() => {
-      if (!isEchoConnected()) onUpdate({ reason: 'poll' })
-    }, FALLBACK_POLL_MS)
+    pollTimer = setInterval(pollTick(onUpdate), FALLBACK_POLL_MS)
     stopResync = watchResync(debounced)
     const echo = getEcho()
     if (!echo) return

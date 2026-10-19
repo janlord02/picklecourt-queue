@@ -245,7 +245,11 @@
                 <span v-else class="display-open-tag">Open courts</span>
                 <span class="display-lane-courts">{{ lane.courtsLabel }}</span>
               </div>
-              <div v-for="entry in lane.rows" :key="entry.player_id" class="display-queue-row">
+              <template v-for="(entry, i) in lane.rows" :key="entry.player_id">
+              <div v-if="gameHeadingAt(lane.rows, i)" class="display-game-head" :class="{ 'display-game-head--next': entry.next_game === 1 }">
+                {{ gameHeadingAt(lane.rows, i) }}
+              </div>
+              <div class="display-queue-row">
                 <span class="display-queue-pos">{{ entry.position }}</span>
                 <span class="display-queue-name">{{ nameOf(entry.player_id) }}</span>
                 <span v-if="partnerNameOf(entry.player_id)" class="display-pair-tag">
@@ -257,6 +261,7 @@
                   formatSeconds(entry.effective_wait_seconds)
                 }}</span>
               </div>
+              </template>
               <div v-if="lane.total > lane.rows.length" class="display-sub q-mt-xs">+{{ lane.total - lane.rows.length }} more</div>
             </div>
             <div v-if="!queueTotal" class="display-sub q-mt-md">Queue is empty</div>
@@ -271,6 +276,7 @@
 </template>
 
 <script setup>
+import { gameHeadingAt } from 'src/utils/queueGames'
 import { standingsSections, podiumOf, unrankedPairs } from 'src/utils/standings'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -501,6 +507,18 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* Smart queue: heading above each planned game. */
+.display-game-head {
+  margin: 14px 0 4px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.display-game-head--next {
+  color: #c6e600;
+}
 /* Brand dark-teal board. Same design language as the app: one surface style
    (hairline borders, soft radius), status pills, hairline vs divider. */
 .display-root {

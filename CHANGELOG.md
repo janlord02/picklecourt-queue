@@ -6,6 +6,8 @@ first.
 
 ## 2026-10
 
+- **Smart queue = who really plays next** — in Smart sessions the Queue tab now lists players in the order Smart will call them, grouped under **Next game**, **Game 2**, … and **Later**, so whoever is #1–4 in their group is the next game (the court calls exactly them). Players see **You're in the next game** / **You're in game N of your line** under their number (account and guest screens), and the TV board shows the same headings. Screens also refresh about once a minute while open (`usePlayRealtime`), because Smart's wait-time rules shift as minutes pass. New `utils/queueGames.js`.
+
 - **Players who left aren't winners** — anyone who played but then **checked out**, got **injured** or was marked **no-show** drops out of the standings and podiums (Board tab, player Stats, TV final standings, recap image) and is listed under **"Left the session · not ranked"** with their record and group. Check them in again and they're ranked again. Store exposes `leaderboardLeft`; `SessionLeaderboard` gets a `left` prop.
 
 - **Group add shows example names** — the empty "Names — one per line" box now shows a sample list (Juan Dela Cruz, Maria Santos, Pedro Penduko, Ana Reyes). The label stays on top (`stack-label`); before, it covered the placeholder until you tapped the box.
