@@ -61,7 +61,48 @@ const routes = [
         name: 'organizer-live',
         component: () => import('pages/organizer/LivePage.vue'),
       },
+      // Tournaments (beta): the list/create entry point is only shown to
+      // super admins; hosts/referees they add can open their tournament.
+      {
+        path: 'tournaments',
+        name: 'organizer-tournaments',
+        component: () => import('pages/organizer/TournamentsPage.vue'),
+      },
+      {
+        path: 'tournaments/:id',
+        name: 'organizer-tournament',
+        component: () => import('pages/organizer/TournamentPage.vue'),
+      },
     ],
+  },
+
+  // Referee scoring (full-screen, court-side)
+  {
+    path: '/tournaments/:id/matches/:matchId/score',
+    name: 'tournament-referee',
+    component: () => import('pages/tournament/RefereePage.vue'),
+    meta: { requiresAuth: true },
+  },
+
+  // Court referee link: open once, keep scoring whatever this court plays next
+  {
+    path: '/tournaments/:id/court/:court',
+    name: 'tournament-court',
+    component: () => import('pages/tournament/CourtPage.vue'),
+    meta: { requiresAuth: true },
+  },
+
+  // Public tournament board (brackets + live scores, no sign-in)
+  {
+    path: '/t/:code',
+    name: 'tournament-board',
+    component: () => import('pages/tournament/TournamentBoardPage.vue'),
+  },
+  // TV live monitor: every court's live score + rotating brackets/standings
+  {
+    path: '/t/:code/tv',
+    name: 'tournament-monitor',
+    component: () => import('pages/tournament/TournamentMonitorPage.vue'),
   },
 
   // Auth

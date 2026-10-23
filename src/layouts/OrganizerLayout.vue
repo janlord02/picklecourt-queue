@@ -8,8 +8,8 @@
           round
           class="tap-44"
           icon="eva-arrow-back-outline"
-          aria-label="Back to your sessions"
-          @click="$router.push({ name: 'organizer-sessions' })"
+          :aria-label="backTarget === 'organizer-tournaments' ? 'Back to tournaments' : 'Back to your sessions'"
+          @click="$router.push({ name: backTarget })"
         />
         <q-toolbar-title class="text-weight-bold row items-center no-wrap">
           <img
@@ -65,8 +65,14 @@ const headerTitle = computed(() => {
   if (route.name === 'organizer-live' && playStore.session?.name) {
     return playStore.session.name
   }
+  if (String(route.name).startsWith('organizer-tournament')) return 'Tournaments'
   return 'Your sessions'
 })
+
+// A tournament console goes back to the tournament list; everything else to sessions.
+const backTarget = computed(() =>
+  route.name === 'organizer-tournament' ? 'organizer-tournaments' : 'organizer-sessions',
+)
 </script>
 
 <style scoped>

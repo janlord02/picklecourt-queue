@@ -15,6 +15,20 @@
         />
       </div>
 
+      <!-- Tournaments (beta): super admins only until it's released -->
+      <router-link
+        v-if="isSuperAdmin"
+        :to="{ name: 'organizer-tournaments' }"
+        class="play-card tournaments-entry tappable q-mb-md"
+      >
+        <q-icon name="eva-award-outline" size="22px" color="primary" />
+        <div class="col">
+          <div class="text-weight-bold">Tournaments <span class="beta-tag">Beta</span></div>
+          <div class="text-caption text-grey-7">Brackets, pools and referee scoring</div>
+        </div>
+        <q-icon name="eva-chevron-right-outline" size="18px" class="text-grey-5" />
+      </router-link>
+
       <!-- Super admin: own sessions by default, or every session on the platform -->
       <div v-if="isSuperAdmin" class="row items-center no-wrap q-mb-md" style="gap: 8px">
         <q-toggle
@@ -565,5 +579,25 @@ onMounted(() => {
 
 .session-row + .session-row {
   border-top: 1px solid var(--line);
+}
+
+.tournaments-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.beta-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: var(--lime);
+  color: var(--brand-deep);
+  vertical-align: 1px;
 }
 </style>

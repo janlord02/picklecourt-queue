@@ -10,7 +10,7 @@ const FALLBACK_POLL_MS = 20000
 // kick in at 10/15/20 minutes) without any action being broadcast.
 const TICKS_PER_REFRESH = 3
 
-function pollTick(onUpdate) {
+export function pollTick(onUpdate) {
   let ticks = 0
   return () => {
     if (!isEchoConnected()) {
@@ -31,7 +31,7 @@ function pollTick(onUpdate) {
  * the page becomes visible again, the device comes back online, or the socket
  * (re)connects. Returns a cleanup function.
  */
-function watchResync(onUpdate) {
+export function watchResync(onUpdate) {
   if (typeof window === 'undefined') return () => {}
   const resync = (reason) => () => onUpdate({ reason })
   const onVisible = () => {
