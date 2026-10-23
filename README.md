@@ -22,6 +22,14 @@ Full product/technical design: [docs/OPEN_PLAY_QUEUING_APP.md](../docs/OPEN_PLAY
   which walks a new user through sign-up then acceptance.
 - **Public surfaces** — `/join/:code` QR landing and `/display/:code`
   chrome-free TV board with the session QR.
+- **Tournaments (beta, super admins only)** — `/organizer/tournaments`:
+  divisions in four formats (pools → playoff, round robin, single and double
+  elimination), team entry + seeding, brackets that advance on their own, a
+  full-screen referee scoring screen
+  (`/tournaments/:id/matches/:matchId/score`, side-out or rally scoring with
+  undo), a public live board at `/t/:code` and a TV live monitor at
+  `/t/:code/tv` (every court's live score + rotating brackets/standings).
+  Brackets draw arrows from each match into the one it feeds.
 
 The server owns all queue state; this app renders
 `GET /api/play/sessions/{id}/state` and refetches when a `.play.updated`

@@ -11,3 +11,7 @@ export function publicAppUrl() {
 }
 
 export const joinUrl = (code) => `${publicAppUrl()}/join/${code}`
+// Tournament spectator board (brackets + live scores, no sign-in).
+export const boardUrl = (code) => `${publicAppUrl()}/t/${code}`
+// Tournament TV monitor (courts + rotating brackets) for a screen at the venue.
+export const monitorUrl = (code) => `${boardUrl(code)}/tv`
