@@ -21,6 +21,19 @@
         </nav>
 
         <q-space />
+        <!-- Demo video (YouTube, new tab). Icon-only on small phones while a
+             live session pill needs the room. -->
+        <a
+          :href="DEMO_VIDEO_URL"
+          target="_blank"
+          rel="noopener"
+          class="header-demo"
+          :class="{ 'header-demo--compact': playStore.sessionId && playStore.session }"
+          aria-label="Watch the demo video on YouTube"
+        >
+          <q-icon name="eva-play-circle-outline" size="18px" />
+          <span class="header-demo-label">Demo</span>
+        </a>
         <!-- Live-session shortcut: pulsing dot + session name → Play tab -->
         <button
           v-if="playStore.sessionId && playStore.session"
@@ -72,6 +85,9 @@ import { useAuthStore } from 'src/stores/auth'
 import { usePlaySessionStore } from 'src/stores/playSession'
 import { haptic } from 'src/utils/native'
 
+// How the queue app works, on YouTube.
+const DEMO_VIDEO_URL = 'https://youtu.be/YvRQUnGxRko'
+
 const route = useRoute()
 const auth = useAuthStore()
 const playStore = usePlaySessionStore()
@@ -108,6 +124,36 @@ function onTab(tab) {
 }
 
 /* "You're in a live session" pill — tap returns to the Play tab. */
+.header-demo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #c7f000;
+  color: #0c2b23;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-decoration: none;
+  white-space: nowrap;
+  flex: none;
+}
+.header-demo:hover {
+  filter: brightness(1.05);
+}
+.header-demo:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+@media (max-width: 420px) {
+  .header-demo--compact {
+    padding: 6px;
+  }
+  .header-demo--compact .header-demo-label {
+    display: none;
+  }
+}
 .header-session {
   display: inline-flex;
   align-items: center;
