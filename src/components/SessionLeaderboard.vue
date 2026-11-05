@@ -93,7 +93,7 @@
 <script setup>
 import { computed } from 'vue'
 import GroupChip from 'src/components/GroupChip.vue'
-import { standingsSections, podiumOf, unrankedPairs } from 'src/utils/standings'
+import { standingsSections, podiumOf, unrankedPairs, gamesLabel } from 'src/utils/standings'
 import { formatMinutes } from 'src/utils/format'
 
 const props = defineProps({
@@ -115,10 +115,13 @@ const grouped = computed(() => sections.value.length > 1 || !!sections.value[0]?
 const restOf = (rows) => rows.slice(podiumOf(rows) ? 3 : 0)
 const pairs = computed(() => unrankedPairs(props.unranked))
 
+// "5 games · 80% · 12m": games first, since with the same wins the player
+// who played more ranks higher.
 function rateLine(row) {
-  const rate = winRate(row)
-  if (!props.showMinutes || !row.games_played) return rate
-  return `${rate} · ${formatMinutes(row.minutes_played)}`
+  if (!row.games_played) return ''
+  const parts = [gamesLabel(row.games_played), winRate(row)]
+  if (props.showMinutes) parts.push(formatMinutes(row.minutes_played))
+  return parts.join(' · ')
 }
 
 function winRate(row) {

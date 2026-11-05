@@ -100,6 +100,7 @@
                 </span>
                 <GroupChip v-if="!finalGrouped && entry.row.play_group_id" :group="groupOf(entry.row.play_group_id)" size="md" dark />
                 <div class="display-podium-record">{{ entry.row.wins }}–{{ entry.row.losses }}</div>
+                <div class="display-podium-games">{{ gamesLabel(entry.row.games_played) }}</div>
                 <div class="display-podium-step" :style="{ height: `${entry.step}px` }">
                   {{ entry.place }}
                 </div>
@@ -114,6 +115,7 @@
                   <q-icon name="eva-link-outline" />{{ row.locked_partner_name }}
                 </span>
                 <GroupChip v-if="!finalGrouped && row.play_group_id" :group="groupOf(row.play_group_id)" size="md" dark />
+                <span class="display-final-games">{{ gamesLabel(row.games_played) }}</span>
                 <span class="display-final-record">{{ row.wins }}–{{ row.losses }}</span>
               </div>
             </div>
@@ -277,7 +279,7 @@
 
 <script setup>
 import { gameHeadingAt } from 'src/utils/queueGames'
-import { standingsSections, podiumOf, unrankedPairs } from 'src/utils/standings'
+import { standingsSections, podiumOf, unrankedPairs, gamesLabel } from 'src/utils/standings'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import logoUrl from 'src/assets/logo.png'
@@ -686,6 +688,13 @@ onBeforeUnmount(() => {
   font-size: clamp(16px, 2vw, 26px);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+
+.display-podium-games {
+  color: #8fb5a9;
+  font-size: clamp(12px, 1.3vw, 17px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   margin-bottom: 10px;
 }
 
@@ -787,6 +796,14 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
+}
+
+.display-final-games {
+  color: #8fb5a9;
+  font-size: 0.85em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .display-final-record {
