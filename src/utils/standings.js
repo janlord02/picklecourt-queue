@@ -20,6 +20,15 @@ export function standingsSections(leaderboard = [], groups = []) {
   return sections
 }
 
+/**
+ * "5 games": shown next to every record, since with the same wins the player
+ * who played more games ranks higher.
+ */
+export function gamesLabel(n) {
+  const games = Number(n) || 0
+  return `${games} ${games === 1 ? 'game' : 'games'}`
+}
+
 /** 2nd · 1st · 3rd podium for one section (needs a full top three). */
 export function podiumOf(rows, steps = [56, 80, 42]) {
   const [first, second, third] = rows

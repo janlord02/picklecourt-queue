@@ -4,6 +4,10 @@ All notable changes to the PickleCourt Queue (queuing) app. This project isn't
 formally versioned yet (pre-1.0), so entries are grouped by month. Newest
 first.
 
+## 2026-11
+
+- **Standings show games played** — every row on the Board, the podium, the TV's final standings and the shared recap image now show how many games the player played ("5 games · 80% · 12m"). With the same wins, the player who played more games now ranks higher (backend change), so players can see why they're placed where they are.
+
 ## 2026-10
 
 - **Header: Demo chip** — a lime **Demo** chip in the player header opens the queue app demo video on YouTube (https://youtu.be/YvRQUnGxRko) in a new tab; icon-only on small phones while the live-session pill is showing.

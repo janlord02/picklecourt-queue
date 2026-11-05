@@ -1,5 +1,5 @@
 import logoUrl from 'src/assets/logo.png'
-import { standingsSections } from 'src/utils/standings'
+import { standingsSections, gamesLabel } from 'src/utils/standings'
 
 /**
  * Renders a shareable end-of-session recap card (PNG via canvas): brand
@@ -213,12 +213,12 @@ export async function buildRecapCanvas(state) {
         baseY - entry.step / 2 + (entry.big ? 22 : 17),
       )
 
-      // stacked upward from the step: win% → record → name → medal
+      // stacked upward from the step: games · win% → record → name → medal
       let ty = baseY - entry.step - 24
       ctx.fillStyle = MUTED
       ctx.font = `600 26px ${FONT}`
       const rate = entry.row.games_played
-        ? `${Math.round((entry.row.wins / entry.row.games_played) * 100)}%`
+        ? `${gamesLabel(entry.row.games_played)} · ${Math.round((entry.row.wins / entry.row.games_played) * 100)}%`
         : '—'
       ctx.fillText(rate, cx - ctx.measureText(rate).width / 2, ty)
       ty -= 40
@@ -275,7 +275,7 @@ export async function buildRecapCanvas(state) {
     ctx.fillText(record, cardX + cardW - 32 - recordW, midY)
 
     const rate = entry.games_played
-      ? `${Math.round((entry.wins / entry.games_played) * 100)}%`
+      ? `${gamesLabel(entry.games_played)} · ${Math.round((entry.wins / entry.games_played) * 100)}%`
       : '—'
     ctx.fillStyle = MUTED
     ctx.font = `600 28px ${FONT}`
@@ -285,7 +285,7 @@ export async function buildRecapCanvas(state) {
     const topThree = !hasPodium && rank < 3
     ctx.fillStyle = topThree ? LIME : INK
     ctx.font = `${topThree ? 800 : 600} 34px ${FONT}`
-    ctx.fillText(truncate(ctx, entry.display_name || 'Player', cardW - 320), PAD + 76, midY)
+    ctx.fillText(truncate(ctx, entry.display_name || 'Player', cardW - 32 - recordW - 28 - rateW - 24 - 76), PAD + 76, midY)
 
     if (index < listRows.length - 1) {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)'
