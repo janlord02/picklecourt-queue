@@ -6,6 +6,8 @@ first.
 
 ## 2026-11
 
+- **Locked pairs rank as one team** — locked pairs are still left out of the winners by default (listed as "Locked pairs · not ranked"); this only changes sessions where the organizer turned on the "Rank locked pairs" option. With it on, a fixed pair took two places (1st Juan, 2nd Pedro — partners), pushing the real 2nd team down. A ranked locked pair now takes one spot together: 1st = Juan 🔗 Pedro, 2nd = Karl 🔗 Paul. Applies to the Board (organizer + player Stats), the TV's final standings and the recap image (team names on two lines on its podium). The player count still counts both partners; your own team is bolded for either partner. A partner who left or isn't ranked keeps a single row. Files: `src/utils/standings.js` (`teamRows`, `teamName`, `playerCount`), `SessionLeaderboard.vue`, `recapImage.js`. Tests: `src/utils/standings.test.js` (`npm test`).
+
 - **Standings show games played** — every row on the Board, the podium, the TV's final standings and the shared recap image now show how many games the player played ("5 games · 80% · 12m"). With the same wins, the player who played more games now ranks higher (backend change), so players can see why they're placed where they are.
 
 ## 2026-10
