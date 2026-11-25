@@ -13,7 +13,7 @@
         <div v-if="grouped" class="lb-section-head">
           <GroupChip v-if="sec.group" :group="sec.group" size="md" />
           <span v-else class="lb-section-none">No group</span>
-          <span class="lb-section-count">{{ sec.rows.length }} {{ sec.rows.length === 1 ? 'player' : 'players' }}</span>
+          <span class="lb-section-count">{{ playerCount(sec.rows) }} {{ playerCount(sec.rows) === 1 ? 'player' : 'players' }}</span>
         </div>
 
         <!-- Podium: 2nd · 1st · 3rd -->
@@ -27,7 +27,7 @@
             <div class="podium-medal">{{ entry.medal }}</div>
             <div
               class="podium-name"
-              :class="{ 'text-weight-bold': highlightPlayerId === entry.row.player_id }"
+              :class="{ 'text-weight-bold': isMine(entry.row) }"
             >
               {{ entry.row.display_name }}
             </div>
@@ -46,7 +46,7 @@
           v-for="(row, i) in restOf(sec.rows)"
           :key="row.player_id"
           class="list-row"
-          :class="{ 'text-weight-bold': highlightPlayerId === row.player_id }"
+          :class="{ 'text-weight-bold': isMine(row) }"
         >
           <div class="rank">{{ i + (podiumOf(sec.rows) ? 3 : 0) + 1 }}</div>
           <div class="col">
@@ -93,7 +93,7 @@
 <script setup>
 import { computed } from 'vue'
 import GroupChip from 'src/components/GroupChip.vue'
-import { standingsSections, podiumOf, unrankedPairs, gamesLabel } from 'src/utils/standings'
+import { standingsSections, podiumOf, unrankedPairs, gamesLabel, playerCount } from 'src/utils/standings'
 import { formatMinutes } from 'src/utils/format'
 
 const props = defineProps({
@@ -114,6 +114,8 @@ const sections = computed(() => standingsSections(props.leaderboard, [...props.g
 const grouped = computed(() => sections.value.length > 1 || !!sections.value[0]?.group || !!sections.value[0]?.ungrouped)
 const restOf = (rows) => rows.slice(podiumOf(rows) ? 3 : 0)
 const pairs = computed(() => unrankedPairs(props.unranked))
+// A team row is "mine" when either partner is the viewer.
+const isMine = (row) => props.highlightPlayerId != null && (row.member_ids || [row.player_id]).includes(props.highlightPlayerId)
 
 // "5 games · 80% · 12m": games first, since with the same wins the player
 // who played more ranks higher.

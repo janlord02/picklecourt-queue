@@ -1,5 +1,5 @@
 import logoUrl from 'src/assets/logo.png'
-import { standingsSections, gamesLabel } from 'src/utils/standings'
+import { standingsSections, gamesLabel, teamName, playerCount } from 'src/utils/standings'
 
 /**
  * Renders a shareable end-of-session recap card (PNG via canvas): brand
@@ -66,11 +66,13 @@ export async function buildRecapCanvas(state) {
   const grouped = sections.length > 1 || !!sections[0]?.group || !!sections[0]?.ungrouped
   const groupCardH = (sec) => GROUP_HEAD + Math.min(sec.rows.length, GROUP_ROWS) * ROW_H + (sec.rows.length > GROUP_ROWS ? 48 : 0) + 18
 
-  const hasPodium = !grouped && leaderboard.length >= 3
-  const listRows = grouped ? [] : leaderboard.slice(hasPodium ? 3 : 0, 12)
+  // Ranked rows with locked pairs folded into one team row each.
+  const ranked = grouped ? [] : sections[0].rows
+  const hasPodium = !grouped && ranked.length >= 3
+  const listRows = grouped ? [] : ranked.slice(hasPodium ? 3 : 0, 12)
   const rankOffset = hasPodium ? 3 : 0
   const shown = rankOffset + listRows.length
-  const moreCount = grouped ? 0 : leaderboard.length - shown
+  const moreCount = grouped ? 0 : ranked.length - shown
 
   // ——— layout math (content-driven height) ———
   const headerH = 130 + 52 + 64 // logo band + title + meta
@@ -122,7 +124,7 @@ export async function buildRecapCanvas(state) {
   const meta = [
     session.date,
     `${stats.games_completed ?? 0} games`,
-    `${session.player_count ?? leaderboard.length} players`,
+    `${session.player_count ?? playerCount(sections.flatMap((sec) => sec.rows))} players`,
   ]
     .filter(Boolean)
     .join('  ·  ')
@@ -172,7 +174,7 @@ export async function buildRecapCanvas(state) {
         ctx.fillText(record, cardX + cardW - 32 - recordW, midY)
         ctx.fillStyle = index === 0 ? LIME : INK
         ctx.font = `${index < 3 ? 800 : 600} 34px ${FONT}`
-        ctx.fillText(truncate(ctx, entry.display_name || 'Player', cardW - 300), PAD + 76, midY)
+        ctx.fillText(truncate(ctx, teamName(entry), cardW - 300), PAD + 76, midY)
         rowY += ROW_H
       })
       if (sec.rows.length > GROUP_ROWS) {
@@ -186,7 +188,7 @@ export async function buildRecapCanvas(state) {
 
   // ——— podium: 2nd · 1st · 3rd, champion tallest ———
   if (hasPodium) {
-    const [first, second, third] = leaderboard
+    const [first, second, third] = ranked
     const podium = [
       { row: second, place: 2, medal: '🥈', step: 120, big: false },
       { row: first, place: 1, medal: '🏆', step: 175, big: true },
@@ -229,8 +231,15 @@ export async function buildRecapCanvas(state) {
       ty -= entry.big ? 48 : 42
       ctx.fillStyle = entry.big ? LIME : INK
       ctx.font = `${entry.big ? 800 : 700} ${entry.big ? 36 : 30}px ${FONT}`
-      const name = truncate(ctx, entry.row.display_name || 'Player', colW - 12)
-      ctx.fillText(name, cx - ctx.measureText(name).width / 2, ty)
+      // A locked-pair team gets both names, one per line.
+      const lines = entry.row.team && entry.row.locked_partner_name
+        ? [entry.row.display_name || 'Player', `+ ${entry.row.locked_partner_name}`]
+        : [teamName(entry.row)]
+      for (let li = lines.length - 1; li >= 0; li--) {
+        const name = truncate(ctx, lines[li], colW - 12)
+        ctx.fillText(name, cx - ctx.measureText(name).width / 2, ty)
+        if (li > 0) ty -= entry.big ? 42 : 36
+      }
       ty -= entry.big ? 24 : 20
       ctx.font = `${entry.big ? 64 : 48}px ${FONT}`
       ctx.textBaseline = 'bottom'
@@ -285,7 +294,7 @@ export async function buildRecapCanvas(state) {
     const topThree = !hasPodium && rank < 3
     ctx.fillStyle = topThree ? LIME : INK
     ctx.font = `${topThree ? 800 : 600} 34px ${FONT}`
-    ctx.fillText(truncate(ctx, entry.display_name || 'Player', cardW - 32 - recordW - 28 - rateW - 24 - 76), PAD + 76, midY)
+    ctx.fillText(truncate(ctx, teamName(entry), cardW - 32 - recordW - 28 - rateW - 24 - 76), PAD + 76, midY)
 
     if (index < listRows.length - 1) {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)'

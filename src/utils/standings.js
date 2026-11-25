@@ -5,8 +5,13 @@
 //
 // `leaderboard` arrives already sorted best-first from the API, so filtering
 // keeps each group's order; ranks restart at 1 inside every group.
+//
+// Locked pairs are NOT winners by default (they're in `leaderboard_unranked`,
+// shown as "not ranked"). Only when the organizer turns on "Rank locked
+// pairs" do they appear here, and then as one team: both partners take a
+// single spot (see `teamRows`), so 1st is Juan + Pedro and 2nd the next team.
 export function standingsSections(leaderboard = [], groups = []) {
-  const rows = leaderboard || []
+  const rows = teamRows(leaderboard)
   const list = [...(groups || [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id - b.id)
   const known = new Set(list.map((g) => g.id))
   const grouped = list.length > 0 && rows.some((r) => r.play_group_id && known.has(r.play_group_id))
@@ -18,6 +23,45 @@ export function standingsSections(leaderboard = [], groups = []) {
   const ungrouped = rows.filter((r) => !r.play_group_id || !known.has(r.play_group_id))
   if (ungrouped.length) sections.push({ key: 'none', group: null, rows: ungrouped, ungrouped: true })
   return sections
+}
+
+/**
+ * Folds a ranked locked pair into one row at the better partner's spot.
+ * Partners share every result, so that row's record is the team's. The row
+ * keeps `display_name` + `locked_partner_name` (shown as "Juan 🔗 Pedro") and
+ * gains `member_ids` (both players) and `team: true`. Everyone else passes
+ * through with `member_ids: [player_id]`.
+ */
+export function teamRows(leaderboard = []) {
+  const rows = leaderboard || []
+  const ids = new Set(rows.map((r) => r.player_id))
+  const taken = new Set()
+  const out = []
+  for (const r of rows) {
+    if (taken.has(r.player_id)) continue
+    const partnerId = r.locked_partner_id
+    if (partnerId && partnerId !== r.player_id && ids.has(partnerId) && !taken.has(partnerId)) {
+      taken.add(r.player_id)
+      taken.add(partnerId)
+      out.push({ ...r, team: true, member_ids: [r.player_id, partnerId] })
+      continue
+    }
+    taken.add(r.player_id)
+    out.push({ ...r, member_ids: [r.player_id] })
+  }
+  return out
+}
+
+/** "Juan + Pedro" for a team row, the player's name otherwise. */
+export function teamName(row) {
+  if (!row) return ''
+  const name = row.display_name || 'Player'
+  return row.team && row.locked_partner_name ? `${name} + ${row.locked_partner_name}` : name
+}
+
+/** Players behind the rows (a team counts as two). */
+export function playerCount(rows = []) {
+  return (rows || []).reduce((n, r) => n + (r.member_ids?.length || 1), 0)
 }
 
 /**
